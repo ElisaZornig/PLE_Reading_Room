@@ -38,6 +38,9 @@ jobs:
       - name: Export web
         run: npx expo export -p web
 
+      - name: Disable Jekyll
+        run: touch dist/.nojekyll
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
