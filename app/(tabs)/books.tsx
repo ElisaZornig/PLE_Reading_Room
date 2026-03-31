@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {Pressable, ScrollView, StyleSheet, Text, View, Image, Alert} from "react-native";
+import {Pressable, ScrollView, StyleSheet, Text, View, Image, Alert, FlatList} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/src/components/AppHeader";
 import { t } from "@/src/i18n";
@@ -33,11 +33,11 @@ export default function BooksScreen() {
     >("all");
 
     const filters = [
-        { key: "all", label: t("books.all") },
-        { key: "reading", label: t("books.reading") },
-        { key: "toRead", label: "TBR" },
-        { key: "finished", label: t("books.finished") },
-        { key: "dnf", label: "DNF" },
+        {key: "all", label: t("books.all")},
+        {key: "reading", label: t("books.reading")},
+        {key: "toRead", label: "TBR"},
+        {key: "finished", label: t("books.finished")},
+        {key: "dnf", label: "DNF"},
     ] as const;
 
 
@@ -53,10 +53,11 @@ export default function BooksScreen() {
             setIsLoading(false);
         }
     }
+
     function handleDeleteBook(bookId: string, bookTitle: string) {
         Alert.alert(
             t("deleteBook.title"),
-            t("deleteBook.message", { title: bookTitle }),
+            t("deleteBook.message", {title: bookTitle}),
             [
                 {
                     text: t("deleteBook.cancel"),
@@ -104,7 +105,7 @@ export default function BooksScreen() {
     }, [books, activeFilter]);
     useEffect(() => {
         async function testSupabase() {
-            const { data, error } = await supabase.from("books").select("*").limit(5);
+            const {data, error} = await supabase.from("books").select("*").limit(5);
             console.log("SUPABASE DATA:", data);
             console.log("SUPABASE ERROR:", error);
         }
@@ -114,73 +115,80 @@ export default function BooksScreen() {
 
     return (
         <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+            style={[styles.safeArea, {backgroundColor: theme.colors.background}]}
             edges={["top"]}
         >
-            <AppHeader />
+            <AppHeader/>
 
-            <ScrollView
-                style={styles.screen}
-                contentContainerStyle={styles.content}
-            >
+            <View style={styles.screen}>
+                <View style={styles.fixedHeaderContent}>
+                    <View style={styles.pageHeader}>
+                        <Text style={styles.pageTitle}>{t("books.title")}</Text>
+                    </View>
 
-                <View style={styles.pageHeader}>
-                    <Text style={styles.pageTitle}>{t("books.title")}</Text>
-                </View>
+                    <Text style={styles.subtitle}>{t("books.subtitle")}</Text>
 
-                <Text style={styles.subtitle}>{t("books.subtitle")}</Text>
-                <Pressable
-                    style={styles.addButton}
-                    onPress={() => router.push("/add-book")}
-                >
-                    <Feather name="plus" size={18} color="#FFFFFF" />
-                    <Text style={styles.addButtonText}>{t("books.addBook")}</Text>
-                </Pressable>
+                    <Pressable
+                        style={styles.addButton}
+                        onPress={() => router.push("/add-book")}
+                    >
+                        <Feather name="plus" size={18} color="#FFFFFF"/>
+                        <Text style={styles.addButtonText}>{t("books.addBook")}</Text>
+                    </Pressable>
 
-                <View style={styles.filterRow}>
-                    {filters.map((filter) => {
-                        const isActive = activeFilter === filter.key;
+                    <View style={styles.filterRow}>
+                        {filters.map((filter) => {
+                            const isActive = activeFilter === filter.key;
 
-                        return (
-                            <Pressable
-                                key={filter.key}
-                                onPress={() => setActiveFilter(filter.key)}
-                                style={[
-                                    styles.filterChip,
-                                    isActive && styles.filterChipActive,
-                                ]}
-                            >
-                                <Text
+                            return (
+                                <Pressable
+                                    key={filter.key}
+                                    onPress={() => setActiveFilter(filter.key)}
                                     style={[
-                                        styles.filterText,
-                                        isActive && styles.filterTextActive,
+                                        styles.filterChip,
+                                        isActive && styles.filterChipActive,
                                     ]}
                                 >
-                                    {filter.label}
-                                </Text>
-                            </Pressable>
-                        );
-                    })}
+                                    <Text
+                                        style={[
+                                            styles.filterText,
+                                            isActive && styles.filterTextActive,
+                                        ]}
+                                    >
+                                        {filter.label}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
                 </View>
 
                 {isLoading ? (
-                    <Text style={styles.stateText}>Boeken laden...</Text>
+                    <View style={styles.stateWrapper}>
+                        <Text style={styles.stateText}>Boeken laden...</Text>
+                    </View>
                 ) : filteredBooks.length === 0 ? (
-                    <Text style={styles.stateText}>Geen boeken in deze categorie.</Text>
+                    <View style={styles.stateWrapper}>
+                        <Text style={styles.stateText}>Geen boeken in deze categorie.</Text>
+                    </View>
                 ) : (
-                    <View style={styles.bookList}>
-                        {filteredBooks.map((book) => (
+                    <FlatList
+                        data={filteredBooks}
+                        keyExtractor={(item) => item.id}
+                        showsVerticalScrollIndicator={false}
+                        style={styles.list}
+                        contentContainerStyle={styles.bookListContent}
+                        renderItem={({item: book}) => (
                             <Pressable
-                                key={book.id}
                                 style={styles.bookCard}
                                 onPress={() =>
                                     router.push({
                                         pathname: "/book/[id]",
-                                        params: { id: encodeURIComponent(book.id) },
+                                        params: {id: encodeURIComponent(book.id)},
                                     })
                                 }
                             >
-                                <BookCover title={book.title} cover={book.cover} />
+                                <BookCover title={book.title} cover={book.cover}/>
 
                                 <View style={styles.bookInfo}>
                                     <Text style={styles.bookTitle}>{book.title}</Text>
@@ -197,7 +205,8 @@ export default function BooksScreen() {
                                     {book.status === "reading" && book.progress !== undefined ? (
                                         <View style={styles.progressSection}>
                                             <Text style={styles.bookMeta}>
-                                                {book.progress}% • Pagina {book.currentPage ?? 0} van {book.totalPages ?? 0}
+                                                {book.progress}% • Pagina {book.currentPage ?? 0} van{" "}
+                                                {book.totalPages ?? 0}
                                             </Text>
 
                                             <Progress.Bar
@@ -211,7 +220,7 @@ export default function BooksScreen() {
                                     ) : null}
 
                                     {book.status === "finished" && book.rating && book.rating > 0 ? (
-                                        <StarRatingDisplay value={book.rating} />
+                                        <StarRatingDisplay value={book.rating}/>
                                     ) : null}
                                 </View>
 
@@ -222,13 +231,17 @@ export default function BooksScreen() {
                                         handleDeleteBook(book.id, book.title);
                                     }}
                                 >
-                                    <Feather name="trash-2" size={18} color={theme.colors.textMuted} />
+                                    <Feather
+                                        name="trash-2"
+                                        size={18}
+                                        color={theme.colors.textMuted}
+                                    />
                                 </Pressable>
                             </Pressable>
-                        ))}
-                    </View>
+                        )}
+                    />
                 )}
-            </ScrollView>
+            </View>
         </SafeAreaView>
     );
 }
@@ -238,34 +251,10 @@ function createStyles(theme: AppTheme) {
         safeArea: {
             flex: 1,
         },
-        screen: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-        },
-        content: {
-            padding: theme.spacing.lg,
-        },
-        pageHeader: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: theme.spacing.md,
-        },
         pageTitle: {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.xl,
             fontWeight: theme.typography.fontWeight.semibold,
-        },
-        subtitle: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
-        },
-        filterRow: {
-            flexDirection: "row",
-            flexWrap: "wrap",
-            gap: theme.spacing.sm,
-            marginBottom: theme.spacing.lg,
         },
         filterChip: {
             backgroundColor: theme.colors.surface,
@@ -288,9 +277,6 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
             marginTop: theme.spacing.md,
-        },
-        bookList: {
-            gap: theme.spacing.md,
         },
         bookCard: {
             flexDirection: "row",
@@ -372,6 +358,50 @@ function createStyles(theme: AppTheme) {
             alignSelf: "flex-start",
             padding: 6,
             marginLeft: theme.spacing.xs,
+        },
+        screen: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+
+        fixedHeaderContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.md,
+        },
+
+        list: {
+            flex: 1,
+        },
+
+        bookListContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: theme.spacing.xl,
+            gap: theme.spacing.md,
+        },
+
+        stateWrapper: {
+            flex: 1,
+            paddingHorizontal: theme.spacing.lg,
+        },
+
+        pageHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: theme.spacing.md,
+        },
+
+        subtitle: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginBottom: theme.spacing.md,
+        },
+
+        filterRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: theme.spacing.sm,
         },
     });
 }

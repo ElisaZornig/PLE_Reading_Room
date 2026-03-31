@@ -153,6 +153,11 @@ export async function fetchSingleUserBookFromSupabase(bookId: string): Promise<B
 
     const row = data as unknown as UserBookRow;
 
+    if (!row?.books) {
+        throw new Error("Boekgegevens ontbreken");
+        // Of: return null; (pas dan wel je return type aan)
+    }
+
     return {
         id: row.books.id,
         title: row.books.title,
