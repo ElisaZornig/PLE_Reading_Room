@@ -1,8 +1,25 @@
+import { Feather } from "@expo/vector-icons";
+import DateTimePicker, {
+    DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
-import {Alert, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View} from "react-native";
-import DateTimePicker, {DateTimePickerAndroid} from "@react-native-community/datetimepicker";
+import {
+    Alert,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { AppHeader } from "@/src/components/AppHeader";
 import { createMeetingInSupabase } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
@@ -16,15 +33,6 @@ export default function PlanMeetingScreen() {
         const value = params.clubId;
         return Array.isArray(value) ? value[0] : value;
     }, [params.clubId]);
-
-    const [title, setTitle] = useState("");
-    const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
-    const [location, setLocation] = useState("");
-    const [notes, setNotes] = useState("");
-    const [isLoading, setIsLoading] = useState(false);
-    const [selectedDateTime, setSelectedDateTime] = useState(new Date());
-    const [date, setDate] = useState(formatDate(new Date()));
-    const [time, setTime] = useState(formatTime(new Date()));
 
     function formatDate(date: Date) {
         const year = date.getFullYear();
@@ -40,6 +48,16 @@ export default function PlanMeetingScreen() {
             hour12: false,
         });
     }
+
+    const [title, setTitle] = useState("");
+    const [location, setLocation] = useState("");
+    const [notes, setNotes] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
+
+    const [selectedDateTime, setSelectedDateTime] = useState(new Date());
+    const [date, setDate] = useState(formatDate(new Date()));
+    const [time, setTime] = useState(formatTime(new Date()));
+    const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
 
     function applyDate(pickedDate: Date) {
         const updated = new Date(selectedDateTime);
@@ -105,6 +123,7 @@ export default function PlanMeetingScreen() {
             applyTime(pickedDate);
         }
     }
+
     async function handleCreateMeeting() {
         try {
             setIsLoading(true);
@@ -121,7 +140,9 @@ export default function PlanMeetingScreen() {
             router.replace("/club");
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : "Something went wrong while planning the meeting.";
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong while planning the meeting.";
             Alert.alert("Plan meeting error", message);
         } finally {
             setIsLoading(false);
@@ -130,103 +151,121 @@ export default function PlanMeetingScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <View style={styles.screen}>
-                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                    <Text style={styles.backText}>Back</Text>
-                </Pressable>
+            <AppHeader />
 
-                <View style={styles.header}>
-                    <Text style={styles.title}>Plan a meeting</Text>
-                    <Text style={styles.subtitle}>
-                        Add your next book club moment.
-                    </Text>
-                </View>
+            <KeyboardAvoidingView
+                style={styles.safeArea}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <View style={styles.screen}>
+                        <View style={styles.header}>
+                            <View style={styles.titleRow}>
+                                <Pressable style={styles.backButton} onPress={() => router.back()}>
+                                    <Feather
+                                        name="chevron-left"
+                                        size={24}
+                                        color={theme.colors.accent}
+                                    />
+                                </Pressable>
 
-                <View style={styles.form}>
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Title</Text>
-                        <TextInput
-                            value={title}
-                            onChangeText={setTitle}
-                            placeholder="For example: April meeting"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={styles.input}
-                        />
-                    </View>
+                                <Text style={styles.title}>Plan a meeting</Text>
+                            </View>
 
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Date</Text>
-                        <Pressable style={styles.input} onPress={openDatePicker}>
-                            <Text style={styles.inputText}>{date}</Text>
-                        </Pressable>
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Time</Text>
-                        <Pressable style={styles.input} onPress={openTimePicker}>
-                            <Text style={styles.inputText}>{time}</Text>
-                        </Pressable>
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Location</Text>
-                        <TextInput
-                            value={location}
-                            onChangeText={setLocation}
-                            placeholder="Optional"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={styles.input}
-                        />
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Notes</Text>
-                        <TextInput
-                            value={notes}
-                            onChangeText={setNotes}
-                            placeholder="Optional"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={[styles.input, styles.textArea]}
-                            multiline
-                            textAlignVertical="top"
-                        />
-                    </View>
-                </View>
-                <Modal
-                    visible={pickerMode !== null}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setPickerMode(null)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalCard}>
-                            <DateTimePicker
-                                value={selectedDateTime}
-                                mode={pickerMode === "date" ? "date" : "time"}
-                                display="spinner"
-                                onChange={handleIosPickerChange}
-                                style={styles.iosPicker}
-                            />
-
-                            <Pressable
-                                style={styles.modalButton}
-                                onPress={() => setPickerMode(null)}
-                            >
-                                <Text style={styles.modalButtonText}>Done</Text>
-                            </Pressable>
+                            <Text style={styles.subtitle}>
+                                Add your next book club moment.
+                            </Text>
                         </View>
+
+                        <View style={styles.form}>
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Title</Text>
+                                <TextInput
+                                    value={title}
+                                    onChangeText={setTitle}
+                                    placeholder="For example: April meeting"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.input}
+                                />
+                            </View>
+
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Date</Text>
+                                <Pressable style={styles.input} onPress={openDatePicker}>
+                                    <Text style={styles.inputText}>{date}</Text>
+                                </Pressable>
+                            </View>
+
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Time</Text>
+                                <Pressable style={styles.input} onPress={openTimePicker}>
+                                    <Text style={styles.inputText}>{time}</Text>
+                                </Pressable>
+                            </View>
+
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Location</Text>
+                                <TextInput
+                                    value={location}
+                                    onChangeText={setLocation}
+                                    placeholder="Optional"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.input}
+                                />
+                            </View>
+
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Notes</Text>
+                                <TextInput
+                                    value={notes}
+                                    onChangeText={setNotes}
+                                    placeholder="Optional"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={[styles.input, styles.textArea]}
+                                    multiline
+                                    textAlignVertical="top"
+                                />
+                            </View>
+                        </View>
+
+                        <Modal
+                            visible={pickerMode !== null}
+                            transparent
+                            animationType="fade"
+                            onRequestClose={() => setPickerMode(null)}
+                        >
+                            <View style={styles.modalOverlay}>
+                                <View style={styles.modalCard}>
+                                    <DateTimePicker
+                                        value={selectedDateTime}
+                                        mode={pickerMode === "date" ? "date" : "time"}
+                                        display="spinner"
+                                        onChange={handleIosPickerChange}
+                                        style={styles.iosPicker}
+                                    />
+
+                                    <Pressable
+                                        style={styles.modalButton}
+                                        onPress={() => setPickerMode(null)}
+                                    >
+                                        <Text style={styles.modalButtonText}>Done</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </Modal>
+
+                        <Pressable
+                            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                            onPress={handleCreateMeeting}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.primaryButtonText}>
+                                {isLoading ? "Saving..." : "Plan meeting"}
+                            </Text>
+                        </Pressable>
                     </View>
-                </Modal>
-                <Pressable
-                    style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-                    onPress={handleCreateMeeting}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.primaryButtonText}>
-                        {isLoading ? "Saving..." : "Plan meeting"}
-                    </Text>
-                </Pressable>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -242,19 +281,20 @@ function createStyles(theme: AppTheme) {
             backgroundColor: theme.colors.background,
             padding: theme.spacing.lg,
         },
-        backButton: {
-            alignSelf: "flex-start",
-            paddingVertical: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
-        },
-        backText: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
-        },
         header: {
             marginBottom: theme.spacing.xl,
             gap: theme.spacing.sm,
+        },
+        titleRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.xs,
+        },
+        backButton: {
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
         },
         title: {
             color: theme.colors.text,
@@ -287,6 +327,10 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
         },
+        inputText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+        },
         textArea: {
             minHeight: 120,
         },
@@ -305,17 +349,12 @@ function createStyles(theme: AppTheme) {
             fontWeight: theme.typography.fontWeight.semibold,
             fontSize: theme.typography.fontSize.sm,
         },
-        inputText: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.sm,
-        },
         modalOverlay: {
             flex: 1,
             backgroundColor: "rgba(0,0,0,0.25)",
             justifyContent: "center",
             padding: theme.spacing.lg,
         },
-
         modalCard: {
             backgroundColor: theme.colors.card,
             borderRadius: theme.radius.lg,
@@ -323,11 +362,9 @@ function createStyles(theme: AppTheme) {
             borderColor: theme.colors.border,
             padding: theme.spacing.md,
         },
-
         iosPicker: {
             alignSelf: "stretch",
         },
-
         modalButton: {
             marginTop: theme.spacing.md,
             backgroundColor: theme.colors.accent,
@@ -335,7 +372,6 @@ function createStyles(theme: AppTheme) {
             paddingVertical: 12,
             alignItems: "center",
         },
-
         modalButtonText: {
             color: "#FFFFFF",
             fontSize: theme.typography.fontSize.sm,

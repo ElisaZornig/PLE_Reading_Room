@@ -226,7 +226,14 @@ export default function ClubScreen() {
                     <Feather name="chevron-right" size={20} color={theme.colors.accent} />
                 </Pressable>
 
-                <Pressable style={styles.linkCard} onPress={() => showPlaceholder(t('club.discussion'))}>
+                <Pressable style={styles.linkCard} onPress={() =>
+                    router.push({
+                        pathname: "/discussion",
+                        params: {
+                            clubId: club.id,
+                        },
+                    })
+                }>
                     <View>
                         <Text style={styles.sectionLabel}>{t('club.discussion')}</Text>
                         <Text style={styles.linkSubtitle}>{t('club.activeQuestions', { count: club.activeQuestionCount })}</Text>

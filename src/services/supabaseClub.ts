@@ -380,3 +380,256 @@ export async function fetchSelectableBooksForClub(): Promise<ClubBookOption[]> {
 
     return uniqueBooks;
 }
+
+export type DiscussionQuestion = {
+    id: string;
+    question: string;
+    createdAt: string;
+    createdBy: string | null;
+};
+
+export async function fetchDiscussionQuestionsForClub(input: {
+    clubId: string;
+    bookId?: string | null;
+}): Promise<DiscussionQuestion[]> {
+    const clubId = input.clubId.trim();
+    const bookId = input.bookId?.trim() ?? null;
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    let query = supabase
+        .from("discussion_questions")
+        .select("id, question, created_at, created_by")
+        .eq("club_id", clubId)
+        .order("created_at", { ascending: false });
+
+    if (bookId) {
+        query = query.eq("book_id", bookId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+        throw error;
+    }
+
+    return (data ?? []).map((item) => ({
+        id: item.id,
+        question: item.question,
+        createdAt: item.created_at,
+        createdBy: item.created_by,
+    }));
+}
+
+export async function createDiscussionQuestionInSupabase(input: {
+    clubId: string;
+    bookId?: string | null;
+    question: string;
+}) {
+    const userId = await getCurrentSupabaseUserId();
+
+    const clubId = input.clubId.trim();
+    const bookId = input.bookId?.trim() ?? null;
+    const question = input.question.trim();
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    if (!question) {
+        throw new Error("Please enter a question.");
+    }
+
+    const { data, error } = await supabase
+        .from("discussion_questions")
+        .insert({
+            club_id: clubId,
+            book_id: bookId,
+            question,
+            created_by: userId,
+        })
+        .select("id")
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+export type DiscussionReply = {
+    id: string;
+    questionId: string;
+    clubId: string;
+    reply: string;
+    createdAt: string;
+    createdBy: string | null;
+    authorName: string;
+};
+
+export async function fetchDiscussionRepliesForQuestion(input: {
+    questionId: string;
+}): Promise<DiscussionReply[]> {
+    const questionId = input.questionId.trim();
+
+    if (!questionId) {
+        throw new Error("No question found.");
+    }
+
+    const { data, error } = await supabase
+        .from("discussion_replies")
+        .select("id, question_id, club_id, reply, created_at, created_by")
+        .eq("question_id", questionId)
+        .order("created_at", { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    const replies = data ?? [];
+    const userIds = Array.from(
+        new Set(
+            replies
+                .map((item) => item.created_by)
+                .filter((value): value is string => Boolean(value))
+        )
+    );
+
+    let nameMap: Record<string, string> = {};
+
+    if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", userIds);
+
+        if (profilesError) {
+            throw profilesError;
+        }
+
+        nameMap = Object.fromEntries(
+            (profiles ?? []).map((profile) => [
+                profile.id,
+                profile.display_name?.trim() || "Club member",
+            ])
+        );
+    }
+
+    return replies.map((item) => ({
+        id: item.id,
+        questionId: item.question_id,
+        clubId: item.club_id,
+        reply: item.reply,
+        createdAt: item.created_at,
+        createdBy: item.created_by,
+        authorName: item.created_by ? nameMap[item.created_by] ?? "Club member" : "Club member",
+    }));
+}
+
+export async function createDiscussionReplyInSupabase(input: {
+    questionId: string;
+    clubId: string;
+    reply: string;
+}) {
+    const userId = await getCurrentSupabaseUserId();
+
+    const questionId = input.questionId.trim();
+    const clubId = input.clubId.trim();
+    const reply = input.reply.trim();
+
+    if (!questionId) {
+        throw new Error("No question found.");
+    }
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    if (!reply) {
+        throw new Error("Please enter a reply.");
+    }
+
+    const { data, error } = await supabase
+        .from("discussion_replies")
+        .insert({
+            question_id: questionId,
+            club_id: clubId,
+            reply,
+            created_by: userId,
+        })
+        .select("id")
+        .single();
+
+    if (error) {
+        throw error;
+    }
+
+    return data;
+}
+
+export async function deleteDiscussionReplyInSupabase(input: {
+    replyId: string;
+}) {
+    const replyId = input.replyId.trim();
+
+    if (!replyId) {
+        throw new Error("No reply found.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_replies")
+        .delete()
+        .eq("id", replyId);
+
+    if (error) {
+        throw error;
+    }
+}
+
+export async function clearDiscussionRepliesForQuestionInSupabase(input: {
+    questionId: string;
+}) {
+    const questionId = input.questionId.trim();
+
+    if (!questionId) {
+        throw new Error("No question found.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_replies")
+        .delete()
+        .eq("question_id", questionId);
+
+    if (error) {
+        throw error;
+    }
+}
+export async function fetchCurrentUserClubRole(input: {
+    clubId: string;
+}): Promise<"owner" | "member" | null> {
+    const userId = await getCurrentSupabaseUserId();
+    const clubId = input.clubId.trim();
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    const { data, error } = await supabase
+        .from("book_club_members")
+        .select("role")
+        .eq("club_id", clubId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (error) {
+        throw error;
+    }
+
+    if (!data?.role) {
+        return null;
+    }
+
+    return data.role;
+}

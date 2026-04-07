@@ -3,11 +3,11 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import {
     Alert,
-    FlatList,
+    FlatList, Keyboard, KeyboardAvoidingView, Platform,
     Pressable,
     StyleSheet,
     Text,
-    TextInput,
+    TextInput, TouchableWithoutFeedback,
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +19,7 @@ import { updateCurrentBookInSupabase } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
+import {AppHeader} from "@/src/components/AppHeader";
 
 export default function SetCurrentBookScreen() {
     const theme = useAppTheme();
@@ -96,106 +97,119 @@ export default function SetCurrentBookScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <View style={styles.screen}>
-                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                    <Text style={styles.backText}>Back</Text>
-                </Pressable>
+            <AppHeader />
 
-                <View style={styles.header}>
-                    <Text style={styles.title}>Set current book</Text>
-                    <Text style={styles.subtitle}>
-                        Search for a book and choose it as your current club book.
-                    </Text>
-                </View>
+            <KeyboardAvoidingView
+                style={styles.safeArea}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <View style={styles.screen}>
+                        <View style={styles.header}>
+                            <View style={styles.titleRow}>
+                                <Pressable style={styles.backButton} onPress={() => router.back()}>
+                                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                                </Pressable>
 
-                <View style={styles.searchRow}>
-                    <View style={styles.searchBar}>
-                        <TextInput
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholder="Search for a book"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={styles.searchInput}
-                            returnKeyType="search"
-                            onSubmitEditing={handleSearch}
-                        />
-                    </View>
+                                <Text style={styles.title}>Set current book</Text>
+                            </View>
 
-                    <Pressable
-                        style={[styles.searchButton, isLoading && styles.searchButtonDisabled]}
-                        onPress={handleSearch}
-                        disabled={isLoading}
-                    >
-                        <Feather name="search" size={18} color="#FFFFFF" />
-                    </Pressable>
-                </View>
-
-                {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-
-                {isLoading ? (
-                    <View style={styles.stateWrapper}>
-                        <Text style={styles.stateText}>Searching books...</Text>
-                    </View>
-                ) : !hasSearched ? (
-                    <View style={styles.emptyCard}>
-                        <Text style={styles.emptyTitle}>Search for a book</Text>
-                        <Text style={styles.emptyText}>
-                            Find a book from the API and set it as the current club book.
-                        </Text>
-                    </View>
-                ) : books.length === 0 ? (
-                    <View style={styles.emptyCard}>
-                        <Text style={styles.emptyTitle}>No results</Text>
-                        <Text style={styles.emptyText}>Try another title or author.</Text>
-                    </View>
-                ) : (
-                    <>
-                        <FlatList
-                            data={books}
-                            keyExtractor={(item) => item.id}
-                            showsVerticalScrollIndicator={false}
-                            contentContainerStyle={styles.listContent}
-                            renderItem={({ item }) => {
-                                const isSelected = selectedBook?.id === item.id;
-
-                                return (
-                                    <Pressable
-                                        style={[styles.bookCard, isSelected && styles.bookCardSelected]}
-                                        onPress={() => setSelectedBook(item)}
-                                    >
-                                        <BookCover title={item.title} cover={item.cover} small />
-
-                                        <View style={styles.bookInfo}>
-                                            <Text style={styles.bookTitle}>{item.title}</Text>
-                                            <Text style={styles.bookAuthor}>{item.author}</Text>
-
-                                            {item.firstPublishYear ? (
-                                                <Text style={styles.bookMeta}>{item.firstPublishYear}</Text>
-                                            ) : null}
-                                        </View>
-
-                                        <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                                            {isSelected ? (
-                                                <Feather name="check" size={16} color="#FFFFFF" />
-                                            ) : null}
-                                        </View>
-                                    </Pressable>
-                                );
-                            }}
-                        />
-
-                        <Pressable
-                            style={[styles.primaryButton, isSaving && styles.primaryButtonDisabled]}
-                            onPress={handleSave}
-                            disabled={isSaving}
-                        >
-                            <Text style={styles.primaryButtonText}>
-                                {isSaving ? "Saving..." : "Set current book"}
+                            <Text style={styles.subtitle}>
+                                Search for a book and choose it as your current club book.
                             </Text>
-                        </Pressable>
-                    </>
-                )}
-            </View>
+                        </View>
+
+                        <View style={styles.searchRow}>
+                            <View style={styles.searchBar}>
+                                <TextInput
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                    placeholder="Search for a book"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.searchInput}
+                                    returnKeyType="search"
+                                    onSubmitEditing={handleSearch}
+                                />
+                            </View>
+
+                            <Pressable
+                                style={[styles.searchButton, isLoading && styles.searchButtonDisabled]}
+                                onPress={handleSearch}
+                                disabled={isLoading}
+                            >
+                                <Feather name="search" size={18} color="#FFFFFF" />
+                            </Pressable>
+                        </View>
+
+                        {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+
+                        {isLoading ? (
+                            <View style={styles.stateWrapper}>
+                                <Text style={styles.stateText}>Searching books...</Text>
+                            </View>
+                        ) : !hasSearched ? (
+                            <View style={styles.emptyCard}>
+                                <Text style={styles.emptyTitle}>Search for a book</Text>
+                                <Text style={styles.emptyText}>
+                                    Find a book from the API and set it as the current club book.
+                                </Text>
+                            </View>
+                        ) : books.length === 0 ? (
+                            <View style={styles.emptyCard}>
+                                <Text style={styles.emptyTitle}>No results</Text>
+                                <Text style={styles.emptyText}>Try another title or author.</Text>
+                            </View>
+                        ) : (
+                            <>
+                                <FlatList
+                                    data={books}
+                                    keyExtractor={(item) => item.id}
+                                    showsVerticalScrollIndicator={false}
+                                    keyboardShouldPersistTaps="handled"
+                                    contentContainerStyle={styles.listContent}
+                                    renderItem={({ item }) => {
+                                        const isSelected = selectedBook?.id === item.id;
+
+                                        return (
+                                            <Pressable
+                                                style={[styles.bookCard, isSelected && styles.bookCardSelected]}
+                                                onPress={() => setSelectedBook(item)}
+                                            >
+                                                <BookCover title={item.title} cover={item.cover} small />
+
+                                                <View style={styles.bookInfo}>
+                                                    <Text style={styles.bookTitle}>{item.title}</Text>
+                                                    <Text style={styles.bookAuthor}>{item.author}</Text>
+
+                                                    {item.firstPublishYear ? (
+                                                        <Text style={styles.bookMeta}>{item.firstPublishYear}</Text>
+                                                    ) : null}
+                                                </View>
+
+                                                <View style={[styles.radio, isSelected && styles.radioSelected]}>
+                                                    {isSelected ? (
+                                                        <Feather name="check" size={16} color="#FFFFFF" />
+                                                    ) : null}
+                                                </View>
+                                            </Pressable>
+                                        );
+                                    }}
+                                />
+
+                                <Pressable
+                                    style={[styles.primaryButton, isSaving && styles.primaryButtonDisabled]}
+                                    onPress={handleSave}
+                                    disabled={isSaving}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isSaving ? "Saving..." : "Set current book"}
+                                    </Text>
+                                </Pressable>
+                            </>
+                        )}
+                    </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -210,11 +224,6 @@ function createStyles(theme: AppTheme) {
             flex: 1,
             backgroundColor: theme.colors.background,
             padding: theme.spacing.lg,
-        },
-        backButton: {
-            alignSelf: "flex-start",
-            paddingVertical: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
         },
         backText: {
             color: theme.colors.accent,
@@ -360,6 +369,17 @@ function createStyles(theme: AppTheme) {
             color: "#FFFFFF",
             fontWeight: theme.typography.fontWeight.semibold,
             fontSize: theme.typography.fontSize.sm,
+        },
+        titleRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.xs,
+        },
+        backButton: {
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
         },
     });
 }

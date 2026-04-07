@@ -1,10 +1,21 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+    Alert, Keyboard,
+    KeyboardAvoidingView, Platform,
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableWithoutFeedback,
+    View
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { createClubInSupabase } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
+import {AppHeader} from "@/src/components/AppHeader";
+import {Feather} from "@expo/vector-icons";
 
 export default function CreateClubScreen() {
     const theme = useAppTheme();
@@ -35,54 +46,66 @@ export default function CreateClubScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <View style={styles.screen}>
-                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                    <Text style={styles.backText}>Back</Text>
-                </Pressable>
+            <AppHeader />
 
-                <View style={styles.header}>
-                    <Text style={styles.title}>Create a club</Text>
-                    <Text style={styles.subtitle}>
-                        Start your book club and invite others later.
-                    </Text>
-                </View>
+            <KeyboardAvoidingView
+                style={styles.safeArea}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <View style={styles.screen}>
+                        <View style={styles.header}>
+                            <View style={styles.titleRow}>
+                                <Pressable style={styles.backButton} onPress={() => router.back()}>
+                                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                                </Pressable>
 
-                <View style={styles.form}>
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Club name</Text>
-                        <TextInput
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="For example: The Reading Room"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={styles.input}
-                        />
+                                <Text style={styles.title}>Create a club</Text>
+                            </View>
+
+                            <Text style={styles.subtitle}>
+                                Start your book club and invite others later.
+                            </Text>
+                        </View>
+
+                        <View style={styles.form}>
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Club name</Text>
+                                <TextInput
+                                    value={name}
+                                    onChangeText={setName}
+                                    placeholder="For example: The Reading Room"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.input}
+                                />
+                            </View>
+
+                            <View style={styles.fieldGroup}>
+                                <Text style={styles.label}>Description</Text>
+                                <TextInput
+                                    value={description}
+                                    onChangeText={setDescription}
+                                    placeholder="Optional"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={[styles.input, styles.textArea]}
+                                    multiline
+                                    textAlignVertical="top"
+                                />
+                            </View>
+                        </View>
+
+                        <Pressable
+                            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+                            onPress={handleCreateClub}
+                            disabled={isLoading}
+                        >
+                            <Text style={styles.primaryButtonText}>
+                                {isLoading ? "Creating..." : "Create club"}
+                            </Text>
+                        </Pressable>
                     </View>
-
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Description</Text>
-                        <TextInput
-                            value={description}
-                            onChangeText={setDescription}
-                            placeholder="Optional"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={[styles.input, styles.textArea]}
-                            multiline
-                            textAlignVertical="top"
-                        />
-                    </View>
-                </View>
-
-                <Pressable
-                    style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-                    onPress={handleCreateClub}
-                    disabled={isLoading}
-                >
-                    <Text style={styles.primaryButtonText}>
-                        {isLoading ? "Creating..." : "Create club"}
-                    </Text>
-                </Pressable>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
@@ -98,10 +121,17 @@ function createStyles(theme: AppTheme) {
             backgroundColor: theme.colors.background,
             padding: theme.spacing.lg,
         },
+        titleRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.xs,
+        },
+
         backButton: {
-            alignSelf: "flex-start",
-            paddingVertical: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
         },
         backText: {
             color: theme.colors.accent,
