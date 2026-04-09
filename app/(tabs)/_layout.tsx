@@ -15,6 +15,8 @@ export default function TabsLayout() {
                 tabBarStyle: {
                     backgroundColor: theme.colors.surface,
                     borderTopColor: theme.colors.border,
+                    height: 70,
+                    justifyContent: "center",
                 },
             }}
         >
