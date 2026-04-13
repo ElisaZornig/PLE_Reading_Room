@@ -211,3 +211,26 @@ export async function fetchStoredBookIdsFromSupabase(): Promise<string[]> {
         .map((row: any) => row.books?.open_library_work_id)
         .filter(Boolean);
 }
+export async function fetchCurrentUserDisplayName() {
+    const {
+        data: { user },
+        error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user) {
+        throw new Error("Geen ingelogde gebruiker gevonden.");
+    }
+
+    const metadataName =
+        typeof user.user_metadata?.display_name === "string"
+            ? user.user_metadata.display_name.trim()
+            : "";
+
+    if (metadataName) {
+        return metadataName;
+    }
+
+    const emailName = user.email?.split("@")[0]?.trim();
+
+    return emailName || "";
+}

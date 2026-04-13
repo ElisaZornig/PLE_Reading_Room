@@ -29,10 +29,15 @@ export default function CreateClubScreen() {
         try {
             setIsLoading(true);
 
-            await createClubInSupabase({
+            const club = await createClubInSupabase({
                 name,
                 description,
             });
+
+            Alert.alert(
+                "Club created",
+                `Invite code: ${club.inviteCode ?? "-"}`
+            );
 
             router.replace("/club");
         } catch (error) {
@@ -43,6 +48,59 @@ export default function CreateClubScreen() {
             setIsLoading(false);
         }
     }
+    const screenContent =  (
+    <View style={styles.screen}>
+        <View style={styles.header}>
+            <View style={styles.titleRow}>
+                <Pressable style={styles.backButton} onPress={() => router.back()}>
+                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                </Pressable>
+
+                <Text style={styles.title}>Create a club</Text>
+            </View>
+
+            <Text style={styles.subtitle}>
+                Start your book club and invite others later.
+            </Text>
+        </View>
+
+        <View style={styles.form}>
+            <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Club name</Text>
+                <TextInput
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="For example: The Reading Room"
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={styles.input}
+                />
+            </View>
+
+            <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Description</Text>
+                <TextInput
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Optional"
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={[styles.input, styles.textArea]}
+                    multiline
+                    textAlignVertical="top"
+                />
+            </View>
+        </View>
+
+        <Pressable
+            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
+            onPress={handleCreateClub}
+            disabled={isLoading}
+        >
+            <Text style={styles.primaryButtonText}>
+                {isLoading ? "Creating..." : "Create club"}
+            </Text>
+        </Pressable>
+    </View>
+    )
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -52,59 +110,13 @@ export default function CreateClubScreen() {
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                    <View style={styles.screen}>
-                        <View style={styles.header}>
-                            <View style={styles.titleRow}>
-                                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                                </Pressable>
-
-                                <Text style={styles.title}>Create a club</Text>
-                            </View>
-
-                            <Text style={styles.subtitle}>
-                                Start your book club and invite others later.
-                            </Text>
-                        </View>
-
-                        <View style={styles.form}>
-                            <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>Club name</Text>
-                                <TextInput
-                                    value={name}
-                                    onChangeText={setName}
-                                    placeholder="For example: The Reading Room"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    style={styles.input}
-                                />
-                            </View>
-
-                            <View style={styles.fieldGroup}>
-                                <Text style={styles.label}>Description</Text>
-                                <TextInput
-                                    value={description}
-                                    onChangeText={setDescription}
-                                    placeholder="Optional"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    style={[styles.input, styles.textArea]}
-                                    multiline
-                                    textAlignVertical="top"
-                                />
-                            </View>
-                        </View>
-
-                        <Pressable
-                            style={[styles.primaryButton, isLoading && styles.primaryButtonDisabled]}
-                            onPress={handleCreateClub}
-                            disabled={isLoading}
-                        >
-                            <Text style={styles.primaryButtonText}>
-                                {isLoading ? "Creating..." : "Create club"}
-                            </Text>
-                        </Pressable>
-                    </View>
-                </TouchableWithoutFeedback>
+                {Platform.OS === "web" ? (
+                    <View style={styles.screen}>{screenContent}</View>
+                ) : (
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                        <View style={styles.screen}>{screenContent}</View>
+                    </TouchableWithoutFeedback>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

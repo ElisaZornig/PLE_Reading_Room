@@ -1,24 +1,29 @@
 import { Feather } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+import { AppHeader } from "@/src/components/AppHeader";
 import { BookCover } from "@/src/components/BookCover";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import { getStoredBooks } from "@/src/services/bookStorage";
-import { Book } from "@/src/types/book";import { t } from "@/src/i18n";
+import { t } from "@/src/i18n";
+import {
+    fetchClubOverviewFromSupabase,
+    type ClubOverview,
+} from "@/src/services/supabaseClub";
+import {fetchCurrentUserDisplayName, fetchUserBooksFromSupabase} from "@/src/services/supabaseUserBooks";
+import { Book } from "@/src/types/book";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
-import * as Progress from 'react-native-progress';
-import {AppHeader} from "@/src/components/AppHeader";
-import { router } from "expo-router";
-import { useRef } from "react";
-import {fetchUserBooksFromSupabase} from "@/src/services/supabaseUserBooks";
 
 
 export default function HomeScreen() {
     const [books, setBooks] = useState<Book[]>([]);
     const theme = useAppTheme();
     const styles = createStyles(theme);
+    const [club, setClub] = useState<ClubOverview | null>(null);
+    const [displayName, setDisplayName] = useState("");
 
     const booksSortedByUpdated = [...books].sort((a, b) => {
         const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -32,11 +37,8 @@ export default function HomeScreen() {
 
     const listBooks = booksSortedByUpdated
         .filter((book) => book.id !== currentBook?.id)
-        .slice(0, 3);
+        .slice(0, 4);
 
-    const clubBook = booksSortedByUpdated.find(
-        (book) => book.id !== currentBook?.id
-    );
     const listCardScale = useRef(new Animated.Value(1)).current;
 
     const animateIn = () => {
@@ -46,25 +48,70 @@ export default function HomeScreen() {
         }).start();
     };
 
+    function formatMeetingLabel(isoDate: string) {
+        const date = new Date(isoDate);
+
+        return new Intl.DateTimeFormat("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).format(date);
+    }
+
+    function getCurrentBookProgressText(book: Book) {
+        const hasProgress = typeof book.progress === "number";
+        const hasCurrentPage = typeof book.currentPage === "number";
+        const hasTotalPages = typeof book.totalPages === "number";
+
+        if (hasProgress && hasCurrentPage && hasTotalPages) {
+            return `${book.progress}% • ${t("home.page")} ${book.currentPage} ${t("home.pageOf")} ${book.totalPages}`;
+        }
+
+        if (hasProgress) {
+            return `${book.progress}%`;
+        }
+
+        if (hasCurrentPage && hasTotalPages) {
+            return `${t("home.page")} ${book.currentPage} ${t("home.pageOf")} ${book.totalPages}`;
+        }
+
+        if (hasCurrentPage) {
+            return `${t("home.page")} ${book.currentPage}`;
+        }
+
+        return t("home.noProgressYet");
+    }
+
     const animateOut = () => {
         Animated.spring(listCardScale, {
             toValue: 1,
             useNativeDriver: true,
         }).start();
     };
-    async function loadBooks() {
+    async function loadHomeData() {
         try {
-            const supabaseBooks = await fetchUserBooksFromSupabase();
+            const [supabaseBooks, clubData, currentUserName] = await Promise.all([
+                fetchUserBooksFromSupabase(),
+                fetchClubOverviewFromSupabase(),
+                fetchCurrentUserDisplayName(),
+            ]);
+
             setBooks(supabaseBooks);
+            setClub(clubData);
+            setDisplayName(currentUserName);
         } catch (error) {
-            console.error("Fout bij ophalen van home boeken uit Supabase:", error);
+            console.error("Error loading home data:", error);
             setBooks([]);
+            setClub(null);
+            setDisplayName("");
         }
     }
 
     useFocusEffect(
         useCallback(() => {
-            loadBooks();
+            loadHomeData();
         }, [])
     );
     return (
@@ -79,18 +126,22 @@ export default function HomeScreen() {
                 contentContainerStyle={styles.content}
             >
 
-                    <Text style={styles.title}>{t("home.welcome", { name: "Elisa" })}</Text>
+                <Text style={styles.title}>
+                    {t("home.welcome", {
+                        name: displayName || t("home.fallbackName"),
+                    })}
+                </Text>
                     <Text style={styles.subtitle}>{t("home.subtitle")}</Text>
 
-                    {currentBook && (
+                {currentBook ? (
+                    <Pressable onPress={() => router.push("/books")}>
                         <View style={styles.bookRow}>
                             <View style={styles.bookInfo}>
                                 <Text style={styles.label}>{t("home.currentlyReading")}</Text>
                                 <Text style={styles.bookTitle}>{currentBook.title}</Text>
                                 <Text style={styles.bookMeta}>{currentBook.author}</Text>
                                 <Text style={styles.bookMeta}>
-                                    {currentBook.progress}% • {t("home.page")} {currentBook.currentPage} {t("home.pageOf")}{" "}
-                                    {currentBook.totalPages}
+                                    {getCurrentBookProgressText(currentBook)}
                                 </Text>
                                 <Progress.Bar
                                     progress={(currentBook.progress ?? 0) / 100}
@@ -103,36 +154,81 @@ export default function HomeScreen() {
 
                             <BookCover title={currentBook.title} cover={currentBook.cover} />
                         </View>
-                    )}
-                {clubBook && (
-                    <View style={styles.bookRow}>
-                        <View style={styles.bookInfo}>
-                            <Text style={styles.label}>{t("home.clubSection")}</Text>
-                            <Text style={styles.bookTitle}>{clubBook.title}</Text>
-                            <Text style={styles.bookMeta}>{clubBook.author}</Text>
-                            <Text style={styles.bookMeta}>
-                                {t("home.nextMeeting")}: vrijdag 26 april
-                            </Text>
-                            <View style={styles.avatarRow}>
-                                <View style={styles.avatar}>
-                                    <Text style={styles.avatarText}>E</Text>
-                                </View>
-                                <View style={styles.avatar}>
-                                    <Text style={styles.avatarText}>S</Text>
-                                </View>
-                                <View style={styles.avatar}>
-                                    <Text style={styles.avatarText}>M</Text>
-                                </View>
-                                <View style={styles.avatarMore}>
-                                    <Text style={styles.avatarMoreText}>+3</Text>
-                                </View>
-                            </View>
-                            {/*<Pressable style={styles.smallButton}>*/}
-                            {/*    <Text style={styles.smallButtonText}>Bekijk club</Text>*/}
-                            {/*</Pressable>*/}
+                    </Pressable>
+                ) : (
+                    <Pressable onPress={() => router.push("/books")}>
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.label}>{t("home.currentlyReading")}</Text>
+                            <Text style={styles.bookTitle}>{t("home.noCurrentBookTitle")}</Text>
+                            <Text style={styles.bookMeta}>{t("home.noCurrentBookText")}</Text>
                         </View>
+                    </Pressable>
+                )}
+                {club ? (
+                    <Pressable onPress={() => router.push("/club")}>
+                        <View style={styles.bookRow}>
+                            <View style={styles.bookInfo}>
+                                <Text style={styles.label}>{t("home.clubSection")}</Text>
+                                <Text style={styles.bookTitle}>{club.name}</Text>
 
-                        <BookCover title={clubBook.title} cover={clubBook.cover} />
+                                {club.currentBook ? (
+                                    <>
+                                        <Text style={styles.bookMeta}>{club.currentBook.title}</Text>
+                                        <Text style={styles.bookMeta}>{club.currentBook.author}</Text>
+                                    </>
+                                ) : (
+                                    <Text style={styles.bookMeta}>{t("home.noCurrentClubBook")}</Text>
+                                )}
+
+                                <Text style={styles.bookMeta}>
+                                    {club.nextMeeting
+                                        ? `${t("home.nextMeeting")}: ${formatMeetingLabel(club.nextMeeting.meetingDate)}`
+                                        : t("home.noMeetingPlanned")}
+                                </Text>
+
+                                <Text style={styles.bookMeta}>
+                                    {club.memberCount}{" "}
+                                    {club.memberCount === 1 ? t("home.member") : t("home.members")}
+                                </Text>
+                            </View>
+
+                            {club.currentBook ? (
+                                <BookCover
+                                    title={club.currentBook.title}
+                                    cover={club.currentBook.cover}
+                                />
+                            ) : (
+                                <View style={styles.clubPlaceholderCover}>
+                                    <Feather name="users" size={24} color={theme.colors.accent} />
+                                </View>
+                            )}
+                        </View>
+                    </Pressable>
+                ) : (
+                    <View style={styles.emptyCard}>
+                        <Text style={styles.label}>{t("home.clubSection")}</Text>
+                        <Text style={styles.bookTitle}>{t("home.noClubTitle")}</Text>
+                        <Text style={styles.bookMeta}>{t("home.noClubText")}</Text>
+
+                        <View style={styles.clubActionRow}>
+                            <Pressable
+                                style={styles.secondaryButton}
+                                onPress={() => router.push("/create-club")}
+                            >
+                                <Text style={styles.secondaryButtonText}>
+                                    {t("home.createClub")}
+                                </Text>
+                            </Pressable>
+
+                            <Pressable
+                                style={styles.secondaryButton}
+                                onPress={() => router.push("/join-club")}
+                            >
+                                <Text style={styles.secondaryButtonText}>
+                                    {t("home.joinClub")}
+                                </Text>
+                            </Pressable>
+                        </View>
                     </View>
                 )}
                 <Pressable
@@ -349,6 +445,58 @@ function createStyles(theme: AppTheme) {
             alignItems: "center",
             justifyContent: "center",
         },
+        emptyClubCard: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            gap: theme.spacing.sm,
+            marginBottom: theme.spacing.md,
+        },
+
+        clubActionRow: {
+            flexDirection: "row",
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
+        },
+
+        secondaryButton: {
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        secondaryButtonText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+        clubPlaceholderCover: {
+            width: 90,
+            height: 135,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.card,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        emptyCard: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            marginBottom: theme.spacing.md,
+        },
+
+
     });
 
 }

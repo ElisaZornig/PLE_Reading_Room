@@ -11,10 +11,12 @@ import {
     fetchClubOverviewFromSupabase,
     type ClubOverview,
     ClubMemberProgress,
-    fetchClubMemberProgress
+    fetchClubMemberProgress, leaveClubInSupabase
 } from '@/src/services/supabaseClub';
 import { AppTheme } from '@/src/theme/theme';
 import { useAppTheme } from '@/src/theme/useAppTheme';
+import {showAppAlert, showAppConfirm} from "@/src/utils/appAlert";
+import * as Clipboard from "expo-clipboard";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -24,9 +26,85 @@ export default function ClubScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [memberProgress, setMemberProgress] = useState<ClubMemberProgress[]>([]);
     const [isProgressExpanded, setIsProgressExpanded] = useState(false);
+    const [isLeavingClub, setIsLeavingClub] = useState(false);
     function showPlaceholder(title: string) {
         Alert.alert(title, 'This is the next screen we can build after this page.');
     }
+    async function handleCopyInviteCode() {
+        if (!club?.inviteCode) {
+            return;
+        }
+
+        try {
+            await Clipboard.setStringAsync(club.inviteCode);
+            showAppAlert(
+                t("club.copyInviteCodeSuccessTitle"),
+                t("club.copyInviteCodeSuccessMessage")
+            );
+        } catch (error) {
+            showAppAlert(
+                t("club.copyInviteCodeErrorTitle"),
+                t("club.copyInviteCodeErrorMessage")
+            );
+        }
+    }
+    async function confirmLeaveClub() {
+        if (!club) {
+            return;
+        }
+
+        try {
+            setIsLeavingClub(true);
+
+            const result = await leaveClubInSupabase(club.id);
+
+            const message =
+                result.action === "deleted"
+                    ? t("club.leaveDeletedMessage")
+                    : result.action === "transferred"
+                        ? t("club.leaveTransferredMessage")
+                        : t("club.leaveSuccessMessage");
+
+            showAppAlert(t("club.leaveSuccessTitle"), message);
+
+            setIsProgressExpanded(false);
+            await loadClub();
+        } catch (error) {
+            const message =
+                error instanceof Error ? error.message : t("club.leaveErrorFallback");
+
+            showAppAlert(t("club.leaveErrorTitle"), message);
+        } finally {
+            setIsLeavingClub(false);
+        }
+    }
+
+    async function handleLeaveClub() {
+        if (!club || isLeavingClub) {
+            return;
+        }
+
+        const message =
+            club.currentUserRole === "owner"
+                ? club.memberCount > 1
+                    ? t("club.leaveOwnerTransferMessage")
+                    : t("club.leaveOwnerDeleteMessage")
+                : t("club.leaveMemberMessage");
+
+        const confirmed = await showAppConfirm({
+            title: t("club.leaveTitle"),
+            message,
+            confirmText: t("club.leaveConfirm"),
+            cancelText: t("common.cancel"),
+        });
+
+        if (!confirmed) {
+            return;
+        }
+
+        await confirmLeaveClub();
+    }
+
 
     async function loadClub() {
         try {
@@ -111,11 +189,17 @@ export default function ClubScreen() {
                     <View style={styles.content}>
                         <View style={styles.emptyCard}>
                             <Text style={styles.pageTitle}>Your club</Text>
+
                             <Text style={styles.emptyText}>
-                                You are not in a book club yet. The next step can be a create or join flow.
+                                You are not in a book club yet. Create one or join with an invite code.
                             </Text>
-                            <Pressable style={styles.secondaryButton} onPress={() => router.push('/create-club')}>
+
+                            <Pressable style={styles.secondaryButton} onPress={() => router.push("/create-club")}>
                                 <Text style={styles.secondaryButtonText}>+ Create a club</Text>
+                            </Pressable>
+
+                            <Pressable style={styles.secondaryButton} onPress={() => router.push("/join-club")}>
+                                <Text style={styles.secondaryButtonText}>+ Join a club</Text>
                             </Pressable>
                         </View>
                     </View>
@@ -137,7 +221,21 @@ export default function ClubScreen() {
                 <View style={styles.pageHeader}>
                     <Text style={styles.pageTitle}>{club.name}</Text>
                 </View>
+                <Pressable
+                    style={styles.inviteRow}
+                    onPress={handleCopyInviteCode}
+                    disabled={!club.inviteCode}
+                >
+                    <View style={styles.inviteTextWrap}>
+                        <Text style={styles.inviteLabel}>{t("club.inviteCode")}</Text>
+                        <Text style={styles.inviteCode}>{club.inviteCode ?? "-"}</Text>
+                    </View>
 
+                    <View style={styles.inviteAction}>
+                        <Text style={styles.inviteActionText}>{t("club.copyCode")}</Text>
+                        <Feather name="copy" size={16} color={theme.colors.accent} />
+                    </View>
+                </Pressable>
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
                         <Text style={styles.statValue}>{club.memberCount}</Text>
@@ -400,7 +498,24 @@ export default function ClubScreen() {
                         </View>
                     ) : null}
                 </View>
+                <View style={styles.sectionCard}>
+                    <Text style={styles.sectionLabel}>{t("club.manageClub")}</Text>
+                    <Text style={styles.emptyText}>
+                        {club.currentUserRole === "owner"
+                            ? t("club.manageClubOwnerText")
+                            : t("club.manageClubMemberText")}
+                    </Text>
 
+                    <Pressable
+                        style={[styles.dangerButton, isLeavingClub && styles.disabledButton]}
+                        onPress={handleLeaveClub}
+                        disabled={isLeavingClub}
+                    >
+                        <Text style={styles.dangerButtonText}>
+                            {isLeavingClub ? t("club.leaving") : t("club.leaveClub")}
+                        </Text>
+                    </Pressable>
+                </View>
             </ScrollView>
         </SafeAreaView>
     );
@@ -725,8 +840,67 @@ function createStyles(theme: AppTheme) {
             minWidth: 32,
             textAlign: 'right',
         },
+        disabledButton: {
+            opacity: 0.6,
+        },
 
+        inviteRow: {
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingHorizontal: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+        },
 
+        inviteTextWrap: {
+            flex: 1,
+            gap: 2,
+        },
 
+        inviteLabel: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+        },
+
+        inviteCode: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        inviteAction: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+        },
+
+        inviteActionText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+
+        dangerButton: {
+            backgroundColor: "#FFF4F4",
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: "#F3C7C7",
+            paddingVertical: 12,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        dangerButtonText: {
+            color: "#B42318",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
     });
 }

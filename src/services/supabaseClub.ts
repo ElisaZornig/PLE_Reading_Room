@@ -17,19 +17,57 @@ type ClubMeeting = {
 export type ClubOverview = {
     id: string;
     name: string;
+    inviteCode: string | null;
     memberCount: number;
     averageProgress: number;
     activeQuestionCount: number;
     currentBook: ClubBook | null;
     nextMeeting: ClubMeeting | null;
+    currentUserRole: "owner" | "member";
 };
+function normalizeInviteCode(code: string) {
+    return code.trim().toUpperCase();
+}
 
+function generateInviteCode(length = 6) {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let result = "";
+
+    for (let i = 0; i < length; i += 1) {
+        const randomIndex = Math.floor(Math.random() * chars.length);
+        result += chars[randomIndex];
+    }
+
+    return result;
+}
+
+async function generateUniqueInviteCode() {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+        const code = generateInviteCode();
+
+        const { data, error } = await supabase
+            .from("book_clubs")
+            .select("id")
+            .eq("invite_code", code)
+            .maybeSingle();
+
+        if (error) {
+            throw error;
+        }
+
+        if (!data) {
+            return code;
+        }
+    }
+
+    throw new Error("Could not generate a unique invite code. Please try again.");
+}
 export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | null> {
     const userId = await getCurrentSupabaseUserId();
 
     const { data: membership, error: membershipError } = await supabase
         .from('book_club_members')
-        .select('club_id')
+        .select('club_id, role')
         .eq('user_id', userId)
         .order('joined_at', { ascending: true })
         .limit(1)
@@ -48,7 +86,7 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
     const [clubResult, membersResult, meetingResult] = await Promise.all([
         supabase
             .from('book_clubs')
-            .select('id, name, current_book_id')
+            .select('id, name, current_book_id, invite_code')
             .eq('id', clubId)
             .maybeSingle(),
         supabase
@@ -155,8 +193,10 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
     }
 
     return {
+        currentUserRole: membership.role,
         id: club.id,
         name: club.name,
+        inviteCode: club.invite_code ?? null,
         memberCount,
         averageProgress,
         activeQuestionCount,
@@ -184,14 +224,17 @@ export async function createClubInSupabase(input: {
         throw new Error("Please enter a club name.");
     }
 
+    const inviteCode = await generateUniqueInviteCode();
+
     const { data: club, error: clubError } = await supabase
         .from("book_clubs")
         .insert({
             name,
             description: description || null,
             created_by: userId,
+            invite_code: inviteCode,
         })
-        .select("id, name")
+        .select("id, name, invite_code")
         .single();
 
     if (clubError) {
@@ -211,7 +254,66 @@ export async function createClubInSupabase(input: {
         throw memberError;
     }
 
-    return club;
+    return {
+        id: club.id,
+        name: club.name,
+        inviteCode: club.invite_code ?? null,
+    };
+}
+export async function joinClubByCode(rawCode: string) {
+    const userId = await getCurrentSupabaseUserId();
+    const inviteCode = normalizeInviteCode(rawCode);
+
+    if (!inviteCode) {
+        throw new Error("Please enter an invite code.");
+    }
+
+    const { data: club, error: clubError } = await supabase
+        .from("book_clubs")
+        .select("id, name, invite_code")
+        .eq("invite_code", inviteCode)
+        .maybeSingle();
+
+    if (clubError) {
+        throw clubError;
+    }
+
+    if (!club) {
+        throw new Error("No club found for this code.");
+    }
+
+    const { data: existingMembership, error: membershipError } = await supabase
+        .from("book_club_members")
+        .select("club_id")
+        .eq("club_id", club.id)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (membershipError) {
+        throw membershipError;
+    }
+
+    if (existingMembership) {
+        throw new Error("You are already in this club.");
+    }
+
+    const { error: insertError } = await supabase
+        .from("book_club_members")
+        .insert({
+            club_id: club.id,
+            user_id: userId,
+            role: "member",
+        });
+
+    if (insertError) {
+        throw insertError;
+    }
+
+    return {
+        id: club.id,
+        name: club.name,
+        inviteCode: club.invite_code ?? null,
+    };
 }
 export async function createMeetingInSupabase(input: {
     clubId: string;
@@ -801,4 +903,30 @@ export async function setCurrentClubBookAndAddToTbr(input: {
     if (error) {
         throw error;
     }
+}
+
+export type LeaveClubResult = {
+    action: "left" | "transferred" | "deleted";
+    newOwnerUserId?: string | null;
+};
+
+export async function leaveClubInSupabase(clubId: string): Promise<LeaveClubResult> {
+    const trimmedClubId = clubId.trim();
+
+    if (!trimmedClubId) {
+        throw new Error("No club found.");
+    }
+
+    const { data, error } = await supabase.rpc("leave_book_club", {
+        p_club_id: trimmedClubId,
+    });
+
+    if (error) {
+        throw error;
+    }
+
+    return {
+        action: data?.action ?? "left",
+        newOwnerUserId: data?.newOwnerUserId ?? null,
+    };
 }

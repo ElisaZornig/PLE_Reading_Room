@@ -1,10 +1,9 @@
 import { Feather } from "@expo/vector-icons";
-import {Alert, StyleSheet, Text, View} from "react-native";
+import { Alert, Platform, StyleSheet, Text, View, Pressable } from "react-native";
 import { AppTheme } from "../theme/theme";
 import { useAppTheme } from "../theme/useAppTheme";
 import { router } from "expo-router";
-import { Pressable } from "react-native";
-import {supabase} from "@/src/services/supabase";
+import { supabase } from "@/src/services/supabase";
 
 export function AppHeader() {
     const theme = useAppTheme();
@@ -17,6 +16,15 @@ export function AppHeader() {
 
         if (!session) {
             router.push("/auth");
+            return;
+        }
+
+        if (Platform.OS === "web") {
+            const confirmed = window.confirm("Weet je zeker dat je wilt uitloggen?");
+            if (confirmed) {
+                await supabase.auth.signOut();
+                router.replace("/auth");
+            }
             return;
         }
 
