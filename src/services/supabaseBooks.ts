@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { SearchBookResult } from "../types/book";
+import { normalizeOpenLibraryWorkId } from "../utils/openLibrary";
 
 export async function getCurrentUserId() {
     const {
@@ -19,7 +20,7 @@ export async function upsertBookFromSearchResult(book: SearchBookResult) {
         .from("books")
         .upsert(
             {
-                open_library_work_id: book.id,
+                open_library_work_id: normalizeOpenLibraryWorkId(book.id) ?? book.id,
                 title: book.title,
                 author: book.author,
                 cover_url: book.cover ?? null,

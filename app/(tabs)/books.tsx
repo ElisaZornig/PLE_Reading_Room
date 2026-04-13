@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {Pressable, ScrollView, StyleSheet, Text, View, Image, Alert, FlatList} from "react-native";
+import {Pressable, ScrollView, StyleSheet, Text, View, Image, Alert, FlatList, Platform} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppHeader } from "@/src/components/AppHeader";
 import { t } from "@/src/i18n";
@@ -54,10 +54,35 @@ export default function BooksScreen() {
         }
     }
 
+    async function deleteBookNow(bookId: string) {
+        try {
+            console.log("Deleting book with id:", bookId);
+
+            await removeUserBookFromSupabase(bookId);
+            await removeStoredBook(bookId);
+            await loadBooks();
+        } catch (error) {
+            console.error("Fout bij verwijderen van boek:", error);
+            Alert.alert("Error", "Het verwijderen van het boek is mislukt.");
+        }
+    }
+
     function handleDeleteBook(bookId: string, bookTitle: string) {
+        if (Platform.OS === "web") {
+            const confirmed = globalThis.confirm?.(
+                t("deleteBook.message", { title: bookTitle })
+            );
+
+            if (confirmed) {
+                void deleteBookNow(bookId);
+            }
+
+            return;
+        }
+
         Alert.alert(
             t("deleteBook.title"),
-            t("deleteBook.message", {title: bookTitle}),
+            t("deleteBook.message", { title: bookTitle }),
             [
                 {
                     text: t("deleteBook.cancel"),
@@ -66,14 +91,8 @@ export default function BooksScreen() {
                 {
                     text: t("deleteBook.confirm"),
                     style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await removeUserBookFromSupabase(bookId);
-                            await removeStoredBook(bookId);
-                            await loadBooks();
-                        } catch (error) {
-                            console.error("Fout bij verwijderen van boek:", error);
-                        }
+                    onPress: () => {
+                        void deleteBookNow(bookId);
                     },
                 },
             ]
@@ -228,6 +247,11 @@ export default function BooksScreen() {
                                     style={styles.deleteButton}
                                     onPress={(event) => {
                                         event.stopPropagation();
+                                        console.log("delete pressed", {
+                                            id: book.id,
+                                            title: book.title,
+                                            fullBook: book,
+                                        });
                                         handleDeleteBook(book.id, book.title);
                                     }}
                                 >

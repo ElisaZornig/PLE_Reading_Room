@@ -25,7 +25,8 @@ import {
     fetchDiscussionQuestionsForClub,
     fetchDiscussionRepliesForQuestion,
     type DiscussionQuestion,
-    type DiscussionReply,
+    type DiscussionReply, updateDiscussionReplyInSupabase, deleteDiscussionReplyInSupabase,
+    deleteDiscussionQuestionInSupabase, updateDiscussionQuestionInSupabase,
 } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
@@ -53,7 +54,14 @@ export default function DiscussionScreen() {
     const [isSavingQuestion, setIsSavingQuestion] = useState(false);
     const [savingReplyForQuestionId, setSavingReplyForQuestionId] = useState<string | null>(null);
     const [clearingRepliesForQuestionId, setClearingRepliesForQuestionId] = useState<string | null>(null);
-
+    const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+    const [editingReplyText, setEditingReplyText] = useState("");
+    const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
+    const [savingEditedReplyId, setSavingEditedReplyId] = useState<string | null>(null);
+    const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+    const [editingQuestionText, setEditingQuestionText] = useState("");
+    const [savingEditedQuestionId, setSavingEditedQuestionId] = useState<string | null>(null);
+    const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
     async function loadDiscussion() {
         try {
             setIsLoading(true);
@@ -160,7 +168,154 @@ export default function DiscussionScreen() {
             setSavingReplyForQuestionId(null);
         }
     }
+    function handleStartEditQuestion(question: DiscussionQuestion) {
+        setEditingQuestionId(question.id);
+        setEditingQuestionText(question.question);
+    }
 
+    function handleCancelEditQuestion() {
+        setEditingQuestionId(null);
+        setEditingQuestionText("");
+    }
+
+    async function handleSaveEditedQuestion() {
+        if (!editingQuestionId) {
+            return;
+        }
+
+        try {
+            if (!editingQuestionText.trim()) {
+                Alert.alert("Edit question", "Please enter a question first.");
+                return;
+            }
+
+            setSavingEditedQuestionId(editingQuestionId);
+
+            await updateDiscussionQuestionInSupabase({
+                questionId: editingQuestionId,
+                question: editingQuestionText,
+            });
+
+            setEditingQuestionId(null);
+            setEditingQuestionText("");
+            await loadDiscussion();
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong while saving the question.";
+            Alert.alert("Edit question error", message);
+        } finally {
+            setSavingEditedQuestionId(null);
+        }
+    }
+
+    function handleDeleteQuestion(questionId: string) {
+        Alert.alert(
+            "Delete question",
+            "Are you sure you want to delete this question? All replies will also be removed.",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setDeletingQuestionId(questionId);
+
+                            await deleteDiscussionQuestionInSupabase({
+                                questionId,
+                            });
+
+                            await loadDiscussion();
+                        } catch (error) {
+                            const message =
+                                error instanceof Error
+                                    ? error.message
+                                    : "Something went wrong while deleting the question.";
+                            Alert.alert("Delete question error", message);
+                        } finally {
+                            setDeletingQuestionId(null);
+                        }
+                    },
+                },
+            ]
+        );
+    }
+    function handleStartEditReply(reply: DiscussionReply) {
+        setEditingReplyId(reply.id);
+        setEditingReplyText(reply.reply);
+    }
+
+    function handleCancelEditReply() {
+        setEditingReplyId(null);
+        setEditingReplyText("");
+    }
+
+    async function handleSaveEditedReply() {
+        if (!editingReplyId) {
+            return;
+        }
+
+        try {
+            if (!editingReplyText.trim()) {
+                Alert.alert("Edit reply", "Please enter a reply first.");
+                return;
+            }
+
+            setSavingEditedReplyId(editingReplyId);
+
+            await updateDiscussionReplyInSupabase({
+                replyId: editingReplyId,
+                reply: editingReplyText,
+            });
+
+            setEditingReplyId(null);
+            setEditingReplyText("");
+            await loadDiscussion();
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Something went wrong while saving the reply.";
+            Alert.alert("Edit reply error", message);
+        } finally {
+            setSavingEditedReplyId(null);
+        }
+    }
+
+    function handleDeleteReply(replyId: string) {
+        Alert.alert(
+            "Delete reply",
+            "Are you sure you want to delete this reply?",
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            setDeletingReplyId(replyId);
+
+                            await deleteDiscussionReplyInSupabase({
+                                replyId,
+                            });
+
+                            await loadDiscussion();
+                        } catch (error) {
+                            const message =
+                                error instanceof Error
+                                    ? error.message
+                                    : "Something went wrong while deleting the reply.";
+                            Alert.alert("Delete reply error", message);
+                        } finally {
+                            setDeletingReplyId(null);
+                        }
+                    },
+                },
+            ]
+        );
+    }
     function handleClearReplies(questionId: string) {
         Alert.alert(
             "Clear replies",
@@ -258,10 +413,71 @@ export default function DiscussionScreen() {
                                                 </View>
 
                                                 <View style={styles.questionContent}>
-                                                    <Text style={styles.questionText}>{item.question}</Text>
-                                                    <Text style={styles.questionMeta}>
-                                                        Added {formatQuestionDate(item.createdAt)}
-                                                    </Text>
+                                                    {editingQuestionId === item.id ? (
+                                                        <>
+                                                            <TextInput
+                                                                value={editingQuestionText}
+                                                                onChangeText={setEditingQuestionText}
+                                                                placeholder="Edit your question"
+                                                                placeholderTextColor={theme.colors.textMuted}
+                                                                style={[styles.input, styles.textArea]}
+                                                                multiline
+                                                                textAlignVertical="top"
+                                                            />
+
+                                                            <View style={styles.replyActionsRow}>
+                                                                <Pressable
+                                                                    style={styles.replyGhostButton}
+                                                                    onPress={handleCancelEditQuestion}
+                                                                >
+                                                                    <Text style={styles.replyGhostButtonText}>Cancel</Text>
+                                                                </Pressable>
+
+                                                                <Pressable
+                                                                    style={[
+                                                                        styles.replySmallButton,
+                                                                        savingEditedQuestionId === item.id && styles.primaryButtonDisabled,
+                                                                    ]}
+                                                                    onPress={handleSaveEditedQuestion}
+                                                                    disabled={savingEditedQuestionId === item.id}
+                                                                >
+                                                                    <Text style={styles.replySmallButtonText}>
+                                                                        {savingEditedQuestionId === item.id ? "Saving..." : "Save"}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            </View>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <Text style={styles.questionText}>{item.question}</Text>
+                                                            <Text style={styles.questionMeta}>
+                                                                Added {formatQuestionDate(item.createdAt)}
+                                                            </Text>
+
+                                                            {item.createdBy === currentUserId || clubRole === "owner" ? (
+                                                                <View style={styles.replyActionsRow}>
+                                                                    {item.createdBy === currentUserId ? (
+                                                                        <Pressable
+                                                                            style={styles.replyGhostButton}
+                                                                            onPress={() => handleStartEditQuestion(item)}
+                                                                        >
+                                                                            <Text style={styles.replyGhostButtonText}>Edit</Text>
+                                                                        </Pressable>
+                                                                    ) : null}
+
+                                                                    <Pressable
+                                                                        style={styles.replyGhostButton}
+                                                                        onPress={() => handleDeleteQuestion(item.id)}
+                                                                        disabled={deletingQuestionId === item.id}
+                                                                    >
+                                                                        <Text style={styles.replyGhostButtonText}>
+                                                                            {deletingQuestionId === item.id ? "Deleting..." : "Delete"}
+                                                                        </Text>
+                                                                    </Pressable>
+                                                                </View>
+                                                            ) : null}
+                                                        </>
+                                                    )}
                                                 </View>
                                             </View>
 
@@ -280,10 +496,69 @@ export default function DiscussionScreen() {
                                                         return (
                                                             <View key={reply.id} style={styles.replyCard}>
                                                                 <Text style={styles.replyAuthor}>{authorLabel}</Text>
-                                                                <Text style={styles.replyText}>{reply.reply}</Text>
-                                                                <Text style={styles.replyMeta}>
-                                                                    Added {formatQuestionDate(reply.createdAt)}
-                                                                </Text>
+
+                                                                {editingReplyId === reply.id ? (
+                                                                    <>
+                                                                        <TextInput
+                                                                            value={editingReplyText}
+                                                                            onChangeText={setEditingReplyText}
+                                                                            placeholder="Edit your reply"
+                                                                            placeholderTextColor={theme.colors.textMuted}
+                                                                            style={[styles.input, styles.replyEditInput]}
+                                                                            multiline
+                                                                            textAlignVertical="top"
+                                                                        />
+
+                                                                        <View style={styles.replyActionsRow}>
+                                                                            <Pressable
+                                                                                style={styles.replyGhostButton}
+                                                                                onPress={handleCancelEditReply}
+                                                                            >
+                                                                                <Text style={styles.replyGhostButtonText}>Cancel</Text>
+                                                                            </Pressable>
+
+                                                                            <Pressable
+                                                                                style={[styles.replySmallButton, savingEditedReplyId === reply.id && styles.primaryButtonDisabled]}
+                                                                                onPress={handleSaveEditedReply}
+                                                                                disabled={savingEditedReplyId === reply.id}
+                                                                            >
+                                                                                <Text style={styles.replySmallButtonText}>
+                                                                                    {savingEditedReplyId === reply.id ? "Saving..." : "Save"}
+                                                                                </Text>
+                                                                            </Pressable>
+                                                                        </View>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Text style={styles.replyText}>{reply.reply}</Text>
+                                                                        <Text style={styles.replyMeta}>
+                                                                            Added {formatQuestionDate(reply.createdAt)}
+                                                                        </Text>
+
+                                                                        {reply.createdBy === currentUserId || clubRole === "owner" ? (
+                                                                            <View style={styles.replyActionsRow}>
+                                                                                {reply.createdBy === currentUserId ? (
+                                                                                    <Pressable
+                                                                                        style={styles.replyGhostButton}
+                                                                                        onPress={() => handleStartEditReply(reply)}
+                                                                                    >
+                                                                                        <Text style={styles.replyGhostButtonText}>Edit</Text>
+                                                                                    </Pressable>
+                                                                                ) : null}
+
+                                                                                <Pressable
+                                                                                    style={styles.replyGhostButton}
+                                                                                    onPress={() => handleDeleteReply(reply.id)}
+                                                                                    disabled={deletingReplyId === reply.id}
+                                                                                >
+                                                                                    <Text style={styles.replyGhostButtonText}>
+                                                                                        {deletingReplyId === reply.id ? "Deleting..." : "Delete"}
+                                                                                    </Text>
+                                                                                </Pressable>
+                                                                            </View>
+                                                                        ) : null}
+                                                                    </>
+                                                                )}
                                                             </View>
                                                         );
                                                     })}
@@ -657,6 +932,45 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,
+        },
+        replyEditInput: {
+            minHeight: 80,
+        },
+
+        replyActionsRow: {
+            flexDirection: "row",
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.xs,
+        },
+
+        replyGhostButton: {
+            backgroundColor: theme.colors.background,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+
+        replyGhostButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+
+        replySmallButton: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        replySmallButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
         },
     });
 }

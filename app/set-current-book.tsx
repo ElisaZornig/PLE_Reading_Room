@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BookCover } from "@/src/components/BookCover";
 import { searchBooks } from "@/src/services/booksApi";
 import { upsertBookFromSearchResult } from "@/src/services/supabaseBooks";
-import { updateCurrentBookInSupabase } from "@/src/services/supabaseClub";
+import {setCurrentClubBookAndAddToTbr, updateCurrentBookInSupabase} from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
@@ -78,12 +78,15 @@ export default function SetCurrentBookScreen() {
 
             const savedBook = await upsertBookFromSearchResult(selectedBook);
 
-            await updateCurrentBookInSupabase({
+            await setCurrentClubBookAndAddToTbr({
                 clubId: clubId ?? "",
                 bookId: savedBook.id,
             });
 
-            router.replace("/club");
+            router.replace({
+                pathname: "/club",
+                params: { clubId: clubId ?? "" },
+            });
         } catch (error) {
             const message =
                 error instanceof Error
@@ -94,6 +97,112 @@ export default function SetCurrentBookScreen() {
             setIsSaving(false);
         }
     }
+    const screenContent = (
+        <View style={styles.screen}>
+            <View style={styles.header}>
+                <View style={styles.titleRow}>
+                    <Pressable style={styles.backButton} onPress={() => router.back()}>
+                        <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                    </Pressable>
+
+                    <Text style={styles.title}>Set current book</Text>
+                </View>
+
+                <Text style={styles.subtitle}>
+                    Search for a book and choose it as your current club book.
+                </Text>
+            </View>
+
+            <View style={styles.searchRow}>
+                <View style={styles.searchBar}>
+                    <TextInput
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search for a book"
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={styles.searchInput}
+                        returnKeyType="search"
+                        onSubmitEditing={handleSearch}
+                    />
+                </View>
+
+                <Pressable
+                    style={[styles.searchButton, isLoading && styles.searchButtonDisabled]}
+                    onPress={handleSearch}
+                    disabled={isLoading}
+                >
+                    <Feather name="search" size={18} color="#FFFFFF" />
+                </Pressable>
+            </View>
+
+            {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
+
+            {isLoading ? (
+                <View style={styles.stateWrapper}>
+                    <Text style={styles.stateText}>Searching books...</Text>
+                </View>
+            ) : !hasSearched ? (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>Search for a book</Text>
+                    <Text style={styles.emptyText}>
+                        Find a book and set it as the current club book.
+                    </Text>
+                </View>
+            ) : books.length === 0 ? (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>No results</Text>
+                    <Text style={styles.emptyText}>Try another title or author.</Text>
+                </View>
+            ) : (
+                <>
+                    <FlatList
+                        data={books}
+                        keyExtractor={(item) => item.id}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                        contentContainerStyle={styles.listContent}
+                        renderItem={({ item }) => {
+                            const isSelected = selectedBook?.id === item.id;
+
+                            return (
+                                <Pressable
+                                    style={[styles.bookCard, isSelected && styles.bookCardSelected]}
+                                    onPress={() => setSelectedBook(item)}
+                                >
+                                    <BookCover title={item.title} cover={item.cover} small />
+
+                                    <View style={styles.bookInfo}>
+                                        <Text style={styles.bookTitle}>{item.title}</Text>
+                                        <Text style={styles.bookAuthor}>{item.author}</Text>
+
+                                        {item.firstPublishYear ? (
+                                            <Text style={styles.bookMeta}>{item.firstPublishYear}</Text>
+                                        ) : null}
+                                    </View>
+
+                                    <View style={[styles.radio, isSelected && styles.radioSelected]}>
+                                        {isSelected ? (
+                                            <Feather name="check" size={16} color="#FFFFFF" />
+                                        ) : null}
+                                    </View>
+                                </Pressable>
+                            );
+                        }}
+                    />
+
+                    <Pressable
+                        style={[styles.primaryButton, isSaving && styles.primaryButtonDisabled]}
+                        onPress={handleSave}
+                        disabled={isSaving}
+                    >
+                        <Text style={styles.primaryButtonText}>
+                            {isSaving ? "Saving..." : "Set current book"}
+                        </Text>
+                    </Pressable>
+                </>
+            )}
+        </View>
+    );
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -103,112 +212,13 @@ export default function SetCurrentBookScreen() {
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                    <View style={styles.screen}>
-                        <View style={styles.header}>
-                            <View style={styles.titleRow}>
-                                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                                </Pressable>
-
-                                <Text style={styles.title}>Set current book</Text>
-                            </View>
-
-                            <Text style={styles.subtitle}>
-                                Search for a book and choose it as your current club book.
-                            </Text>
-                        </View>
-
-                        <View style={styles.searchRow}>
-                            <View style={styles.searchBar}>
-                                <TextInput
-                                    value={searchQuery}
-                                    onChangeText={setSearchQuery}
-                                    placeholder="Search for a book"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    style={styles.searchInput}
-                                    returnKeyType="search"
-                                    onSubmitEditing={handleSearch}
-                                />
-                            </View>
-
-                            <Pressable
-                                style={[styles.searchButton, isLoading && styles.searchButtonDisabled]}
-                                onPress={handleSearch}
-                                disabled={isLoading}
-                            >
-                                <Feather name="search" size={18} color="#FFFFFF" />
-                            </Pressable>
-                        </View>
-
-                        {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
-
-                        {isLoading ? (
-                            <View style={styles.stateWrapper}>
-                                <Text style={styles.stateText}>Searching books...</Text>
-                            </View>
-                        ) : !hasSearched ? (
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>Search for a book</Text>
-                                <Text style={styles.emptyText}>
-                                    Find a book from the API and set it as the current club book.
-                                </Text>
-                            </View>
-                        ) : books.length === 0 ? (
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>No results</Text>
-                                <Text style={styles.emptyText}>Try another title or author.</Text>
-                            </View>
-                        ) : (
-                            <>
-                                <FlatList
-                                    data={books}
-                                    keyExtractor={(item) => item.id}
-                                    showsVerticalScrollIndicator={false}
-                                    keyboardShouldPersistTaps="handled"
-                                    contentContainerStyle={styles.listContent}
-                                    renderItem={({ item }) => {
-                                        const isSelected = selectedBook?.id === item.id;
-
-                                        return (
-                                            <Pressable
-                                                style={[styles.bookCard, isSelected && styles.bookCardSelected]}
-                                                onPress={() => setSelectedBook(item)}
-                                            >
-                                                <BookCover title={item.title} cover={item.cover} small />
-
-                                                <View style={styles.bookInfo}>
-                                                    <Text style={styles.bookTitle}>{item.title}</Text>
-                                                    <Text style={styles.bookAuthor}>{item.author}</Text>
-
-                                                    {item.firstPublishYear ? (
-                                                        <Text style={styles.bookMeta}>{item.firstPublishYear}</Text>
-                                                    ) : null}
-                                                </View>
-
-                                                <View style={[styles.radio, isSelected && styles.radioSelected]}>
-                                                    {isSelected ? (
-                                                        <Feather name="check" size={16} color="#FFFFFF" />
-                                                    ) : null}
-                                                </View>
-                                            </Pressable>
-                                        );
-                                    }}
-                                />
-
-                                <Pressable
-                                    style={[styles.primaryButton, isSaving && styles.primaryButtonDisabled]}
-                                    onPress={handleSave}
-                                    disabled={isSaving}
-                                >
-                                    <Text style={styles.primaryButtonText}>
-                                        {isSaving ? "Saving..." : "Set current book"}
-                                    </Text>
-                                </Pressable>
-                            </>
-                        )}
-                    </View>
-                </TouchableWithoutFeedback>
+                {Platform.OS === "web" ? (
+                    screenContent
+                ) : (
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                        {screenContent}
+                    </TouchableWithoutFeedback>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

@@ -633,3 +633,172 @@ export async function fetchCurrentUserClubRole(input: {
 
     return data.role;
 }
+export async function updateDiscussionReplyInSupabase(input: {
+    replyId: string;
+    reply: string;
+}) {
+    const replyId = input.replyId.trim();
+    const reply = input.reply.trim();
+
+    if (!replyId) {
+        throw new Error("No reply found.");
+    }
+
+    if (!reply) {
+        throw new Error("Please enter a reply.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_replies")
+        .update({
+            reply,
+        })
+        .eq("id", replyId);
+
+    if (error) {
+        throw error;
+    }
+}
+export async function updateDiscussionQuestionInSupabase(input: {
+    questionId: string;
+    question: string;
+}) {
+    const questionId = input.questionId.trim();
+    const question = input.question.trim();
+
+    if (!questionId) {
+        throw new Error("No question found.");
+    }
+
+    if (!question) {
+        throw new Error("Please enter a question.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_questions")
+        .update({
+            question,
+        })
+        .eq("id", questionId);
+
+    if (error) {
+        throw error;
+    }
+}
+
+export async function deleteDiscussionQuestionInSupabase(input: {
+    questionId: string;
+}) {
+    const questionId = input.questionId.trim();
+
+    if (!questionId) {
+        throw new Error("No question found.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_questions")
+        .delete()
+        .eq("id", questionId);
+
+    if (error) {
+        throw error;
+    }
+}
+export type ClubMemberProgress = {
+    userId: string;
+    displayName: string;
+    role: "owner" | "member";
+    status: string | null;
+    progress: number;
+    avatarUrl?: string | null;
+};
+
+export async function fetchClubMemberProgress(input: {
+    clubId: string;
+    currentBookId?: string | null;
+}): Promise<ClubMemberProgress[]> {
+    const clubId = input.clubId.trim();
+    const currentBookId = input.currentBookId?.trim() ?? null;
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    const { data: members, error: membersError } = await supabase
+        .from("book_club_members")
+        .select("user_id, role")
+        .eq("club_id", clubId);
+
+    if (membersError) {
+        throw membersError;
+    }
+
+    const memberRows = members ?? [];
+    const userIds = memberRows.map((member) => member.user_id).filter(Boolean);
+
+    if (userIds.length === 0) {
+        return [];
+    }
+
+    const [{ data: profiles, error: profilesError }, progressResult] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select("id, display_name")
+            .in("id", userIds),
+        currentBookId
+            ? supabase
+                .from("user_books")
+                .select("user_id, status, progress")
+                .eq("book_id", currentBookId)
+                .in("user_id", userIds)
+            : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (profilesError) {
+        throw profilesError;
+    }
+
+    if (progressResult.error) {
+        throw progressResult.error;
+    }
+
+    const profileMap = Object.fromEntries(
+        (profiles ?? []).map((profile) => [
+            profile.id,
+            profile.display_name?.trim() || "Club member",
+        ])
+    );
+
+    const progressMap = Object.fromEntries(
+        (progressResult.data ?? []).map((row) => [
+            row.user_id,
+            {
+                status: row.status ?? null,
+                progress: row.progress ?? 0,
+            },
+        ])
+    );
+
+    return memberRows.map((member) => ({
+        userId: member.user_id,
+        displayName: profileMap[member.user_id] ?? "Club member",
+        role: member.role,
+        status: progressMap[member.user_id]?.status ?? null,
+        progress: progressMap[member.user_id]?.progress ?? 0,
+        avatarUrl: null,
+    }));
+}
+
+export async function setCurrentClubBookAndAddToTbr(input: {
+    clubId: string;
+    bookId: string;
+}) {
+    const { error } = await supabase.rpc("set_current_club_book_and_add_to_tbr", {
+        p_club_id: input.clubId,
+        p_book_id: input.bookId,
+    });
+
+    if (error) {
+        throw error;
+    }
+}

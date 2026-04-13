@@ -86,32 +86,23 @@ export async function fetchUserBooksFromSupabase(): Promise<Book[]> {
         }));
 }
 
-export async function removeUserBookFromSupabase(openLibraryWorkId: string) {
+export async function removeUserBookFromSupabase(bookId: string) {
     const userId = await getCurrentSupabaseUserId();
 
-    const { data: bookRow, error: bookError } = await supabase
-        .from("books")
-        .select("id")
-        .eq("open_library_work_id", openLibraryWorkId)
-        .maybeSingle();
-
-    if (bookError) {
-        throw bookError;
-    }
-
-    if (!bookRow) {
-        return;
-    }
-
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from("user_books")
         .delete()
         .eq("user_id", userId)
-        .eq("book_id", bookRow.id);
+        .eq("book_id", bookId)
+        .select();
+
+    console.log("DELETE RESULT", { bookId, userId, data, error });
 
     if (error) {
         throw error;
     }
+
+    return data;
 }
 
 export async function fetchSingleUserBookFromSupabase(bookId: string): Promise<Book | null> {

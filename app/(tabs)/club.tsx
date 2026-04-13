@@ -1,13 +1,18 @@
 import { Feather } from '@expo/vector-icons';
 import {router, useFocusEffect} from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View, Image } from 'react-native';
 import * as Progress from 'react-native-progress';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/src/components/AppHeader';
 import { BookCover } from '@/src/components/BookCover';
 import { t } from '@/src/i18n';
-import { fetchClubOverviewFromSupabase, type ClubOverview } from '@/src/services/supabaseClub';
+import {
+    fetchClubOverviewFromSupabase,
+    type ClubOverview,
+    ClubMemberProgress,
+    fetchClubMemberProgress
+} from '@/src/services/supabaseClub';
 import { AppTheme } from '@/src/theme/theme';
 import { useAppTheme } from '@/src/theme/useAppTheme';
 
@@ -17,7 +22,8 @@ export default function ClubScreen() {
 
     const [club, setClub] = useState<ClubOverview | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-
+    const [memberProgress, setMemberProgress] = useState<ClubMemberProgress[]>([]);
+    const [isProgressExpanded, setIsProgressExpanded] = useState(false);
     function showPlaceholder(title: string) {
         Alert.alert(title, 'This is the next screen we can build after this page.');
     }
@@ -26,9 +32,21 @@ export default function ClubScreen() {
         try {
             const clubData = await fetchClubOverviewFromSupabase();
             setClub(clubData);
+
+            if (clubData) {
+                const progressData = await fetchClubMemberProgress({
+                    clubId: clubData.id,
+                    currentBookId: clubData.currentBook?.id ?? null,
+                });
+
+                setMemberProgress(progressData);
+            } else {
+                setMemberProgress([]);
+            }
         } catch (error) {
             console.error('Error loading club data:', error);
             setClub(null);
+            setMemberProgress([]);
         } finally {
             setIsLoading(false);
         }
@@ -40,6 +58,39 @@ export default function ClubScreen() {
             loadClub();
         }, [])
     );
+    function formatMemberStatus(status: string | null, progress: number) {
+        if (status === 'finished') {
+            return 'Finished';
+        }
+
+        if (status === 'reading') {
+            return 'Reading';
+        }
+
+        if (status === 'toRead') {
+            return 'To read';
+        }
+
+        if (progress > 0) {
+            return 'Reading';
+        }
+
+        return 'To read';
+    }
+
+    function getInitials(name: string) {
+        const parts = name.trim().split(/\s+/).filter(Boolean);
+
+        if (parts.length === 0) {
+            return '?';
+        }
+
+        if (parts.length === 1) {
+            return parts[0].slice(0, 1).toUpperCase();
+        }
+
+        return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+    }
 
     if (isLoading) {
         return (
@@ -119,19 +170,6 @@ export default function ClubScreen() {
                                 <View style={styles.bookInfo}>
                                     <Text style={styles.bookTitle}>{club.currentBook.title}</Text>
                                     <Text style={styles.bookAuthor}>{club.currentBook.author}</Text>
-                                    <Text style={styles.bookMeta}>Current group progress: {club.averageProgress}%</Text>
-
-                                    <View style={styles.progressWrap}>
-                                        <Progress.Bar
-                                            progress={club.averageProgress / 100}
-                                            width={null}
-                                            height={6}
-                                            borderWidth={0}
-                                            color={theme.colors.accent}
-                                            unfilledColor={theme.colors.border}
-                                            style={styles.progressBar}
-                                        />
-                                    </View>
                                 </View>
                             </View>
 
@@ -139,7 +177,7 @@ export default function ClubScreen() {
                                 style={styles.secondaryButton}
                                 onPress={() =>
                                     router.push({
-                                        pathname: "/set-current-book",
+                                        pathname: "/choose-next-book",
                                         params: { clubId: club.id },
                                     })
                                 }
@@ -168,7 +206,24 @@ export default function ClubScreen() {
                         </>
                     )}
                 </View>
+                <Pressable
+                    style={styles.linkCard}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/recommendations",
+                            params: {
+                                clubId: club.id,
+                            },
+                        })
+                    }
+                >
+                    <View>
+                        <Text style={styles.sectionLabel}>Next book</Text>
+                        <Text style={styles.linkSubtitle}>See top recommendations for your club</Text>
+                    </View>
 
+                    <Feather name="chevron-right" size={20} color={theme.colors.accent} />
+                </Pressable>
                 <View style={styles.sectionCard}>
                     <Text style={styles.sectionLabel}>{t('club.nextMeeting')}</Text>
 
@@ -217,15 +272,6 @@ export default function ClubScreen() {
                     )}
                 </View>
 
-                <Pressable style={styles.linkCard} onPress={() => showPlaceholder(t('club.progress'))}>
-                    <View>
-                        <Text style={styles.sectionLabel}>{t('club.progress')}</Text>
-                        <Text style={styles.linkSubtitle}>{club.memberCount} members in this club</Text>
-                    </View>
-
-                    <Feather name="chevron-right" size={20} color={theme.colors.accent} />
-                </Pressable>
-
                 <Pressable style={styles.linkCard} onPress={() =>
                     router.push({
                         pathname: "/discussion",
@@ -242,6 +288,119 @@ export default function ClubScreen() {
 
                     <Feather name="chevron-right" size={20} color={theme.colors.accent} />
                 </Pressable>
+
+                <View style={styles.sectionCard}>
+                    <Pressable
+                        style={styles.accordionHeader}
+                        onPress={() => setIsProgressExpanded((current) => !current)}
+                    >
+                        <View style={styles.accordionHeaderText}>
+                            <Text style={styles.sectionLabel}>{t('club.progress')}</Text>
+                            <Text style={styles.linkSubtitle}>
+                                {club.averageProgress}% average progress · {memberProgress.length} members
+                            </Text>
+                        </View>
+
+                        <View style={styles.accordionRight}>
+                            <View style={styles.avatarStack}>
+                                {memberProgress.slice(0, 4).map((member, index) => (
+                                    <View
+                                        key={member.userId}
+                                        style={[
+                                            styles.memberAvatarSmall,
+                                            {
+                                                marginLeft: index === 0 ? 0 : -10,
+                                                zIndex: 10 - index,
+                                            },
+                                        ]}
+                                    >
+                                        <Text style={styles.memberAvatarSmallText}>
+                                            {getInitials(member.displayName)}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            <Feather
+                                name={isProgressExpanded ? 'chevron-up' : 'chevron-down'}
+                                size={20}
+                                color={theme.colors.accent}
+                            />
+                        </View>
+                    </Pressable>
+
+
+
+                    <View style={styles.progressWrap}>
+                        <Progress.Bar
+                            progress={club.averageProgress / 100}
+                            width={null}
+                            height={6}
+                            borderWidth={0}
+                            color={theme.colors.accent}
+                            unfilledColor={theme.colors.border}
+                            style={styles.progressBar}
+                        />
+                    </View>
+
+                    {isProgressExpanded ? (
+                        <View style={styles.memberList}>
+                            {memberProgress.length === 0 ? (
+                                <Text style={styles.emptyText}>No members yet.</Text>
+                            ) : (
+                                memberProgress.map((member) => (
+                                    <View key={member.userId} style={styles.memberRow}>
+                                        <View style={styles.memberTopRow}>
+                                            <View style={styles.memberIdentity}>
+                                                {member.avatarUrl ? (
+                                                    <Image
+                                                        source={{ uri: member.avatarUrl }}
+                                                        style={styles.memberAvatar}
+                                                    />
+                                                ) : (
+                                                    <View style={styles.memberAvatarFallback}>
+                                                        <Text style={styles.memberAvatarFallbackText}>
+                                                            {getInitials(member.displayName)}
+                                                        </Text>
+                                                    </View>
+                                                )}
+
+                                                <View style={styles.memberTextWrap}>
+                                                    <View style={styles.memberNameWrap}>
+                                                        <Text style={styles.memberName}>{member.displayName}</Text>
+
+                                                        {member.role === 'owner' ? (
+                                                            <View style={styles.roleBadge}>
+                                                                <Text style={styles.roleBadgeText}>Owner</Text>
+                                                            </View>
+                                                        ) : null}
+                                                    </View>
+
+                                                    <Text style={styles.memberStatus}>
+                                                        {formatMemberStatus(member.status, member.progress)}
+                                                    </Text>
+                                                </View>
+                                            </View>
+
+                                            <Text style={styles.memberProgressText}>{member.progress}%</Text>
+                                        </View>
+
+                                        <Progress.Bar
+                                            progress={member.progress / 100}
+                                            width={null}
+                                            height={6}
+                                            borderWidth={0}
+                                            color={theme.colors.accent}
+                                            unfilledColor={theme.colors.border}
+                                            style={styles.memberProgressBar}
+                                        />
+                                    </View>
+                                ))
+                            )}
+                        </View>
+                    ) : null}
+                </View>
+
             </ScrollView>
         </SafeAreaView>
     );
@@ -437,5 +596,137 @@ function createStyles(theme: AppTheme) {
             fontSize: theme.typography.fontSize.sm,
             lineHeight: 20,
         },
+
+        accordionHeader: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: theme.spacing.md,
+        },
+
+        accordionHeaderText: {
+            flex: 1,
+        },
+
+        accordionRight: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+        },
+
+        avatarStack: {
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+
+        memberAvatarSmall: {
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: theme.colors.accentSoft,
+            borderWidth: 2,
+            borderColor: theme.colors.card,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+
+        memberAvatarSmallText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        memberList: {
+            gap: theme.spacing.md,
+        },
+
+        memberRow: {
+            gap: theme.spacing.sm,
+        },
+
+        memberTopRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: theme.spacing.md,
+        },
+
+        memberIdentity: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            flex: 1,
+        },
+
+        memberAvatar: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+        },
+
+        memberAvatarFallback: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: theme.colors.accentSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+        },
+
+        memberAvatarFallbackText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        memberTextWrap: {
+            flex: 1,
+            gap: 2,
+        },
+
+        memberNameWrap: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: theme.spacing.sm,
+            flexWrap: 'wrap',
+        },
+
+        memberName: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+
+        roleBadge: {
+            backgroundColor: theme.colors.accentSoft,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 10,
+            paddingVertical: 4,
+        },
+
+        roleBadgeText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        memberStatus: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+        },
+
+        memberProgressBar: {
+            width: '100%',
+        },
+
+        memberProgressText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            minWidth: 32,
+            textAlign: 'right',
+        },
+
+
+
     });
 }
