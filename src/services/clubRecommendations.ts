@@ -350,10 +350,16 @@ function getStatusWeight(status: string | null) {
     }
 
     if (status === "toRead") {
-        return 0.35;
+        return 0.9;
+    }
+    if (status === "dnf") {
+        return -2;
     }
 
     return 0;
+}
+function shouldExcludeFromRecommendations(status: string | null) {
+    return status === "finished" || status === "reading" || status === "dnf";
 }
 
 function getBooksObject(
@@ -614,13 +620,15 @@ async function loadClubContext(clubId: string): Promise<ClubContext> {
 
     for (const row of typedUserBooks) {
         const book = getBooksObject(row.books);
-        const workId = book?.open_library_work_id?.trim();
 
         const normalizedWorkId = normalizeOpenLibraryWorkId(
             book?.open_library_work_id
         );
 
-        if (normalizedWorkId) {
+        if (
+            normalizedWorkId &&
+            shouldExcludeFromRecommendations(row.status)
+        ) {
             existingWorkIds.add(normalizedWorkId);
         }
     }

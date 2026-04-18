@@ -1,18 +1,23 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
+    TouchableWithoutFeedback,
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LottieView from "lottie-react-native";
 
 import { AppHeader } from "@/src/components/AppHeader";
+import { BookCover } from "@/src/components/BookCover";
 import { CoverPlaceholder } from "@/src/components/CoverPlaceholder";
 import { t } from "@/src/i18n";
 import { searchBooks } from "@/src/services/booksApi";
@@ -22,106 +27,127 @@ import {
     upsertBookFromSearchResult,
 } from "@/src/services/supabaseBooks";
 import {
-    fetchStoredBookIdsFromSupabase,
+    fetchStoredBookMapFromSupabase,
     removeUserBookFromSupabase,
 } from "@/src/services/supabaseUserBooks";
+import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
+import { showAppAlert } from "@/src/utils/appAlert";
+import { getOpenLibraryWorkId } from "@/src/utils/openLibrary";
+import {triggerRefresh} from "@/src/utils/refreshEvents";
 
 export default function AddBookScreen() {
     const theme = useAppTheme();
+    const pageStyles = createPageStyles(theme);
     const styles = createStyles(theme);
 
     const [searchQuery, setSearchQuery] = useState("");
     const [results, setResults] = useState<SearchBookResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isAddingBookId, setIsAddingBookId] = useState<string | null>(null);
     const [errorText, setErrorText] = useState("");
-    const [storedBookIds, setStoredBookIds] = useState<string[]>([]);
+    const [hasSearched, setHasSearched] = useState(false);
+    const [storedBookMap, setStoredBookMap] = useState<Record<string, string>>({});
+
+    const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
 
     async function loadStoredBookIds() {
         try {
-            const ids = await fetchStoredBookIdsFromSupabase();
-            setStoredBookIds(ids);
+            const bookMap = await fetchStoredBookMapFromSupabase();
+            setStoredBookMap(bookMap);
         } catch (error) {
-            console.error("Fout bij ophalen van opgeslagen boek ids:", error);
-            setStoredBookIds([]);
+            console.error("Fout bij ophalen van opgeslagen boeken:", error);
+            setStoredBookMap({});
         }
     }
 
     useEffect(() => {
-        loadStoredBookIds();
+        void loadStoredBookIds();
     }, []);
 
-    useEffect(() => {
-        const trimmedQuery = searchQuery.trim();
-
+    async function handleSearch() {
         if (!trimmedQuery) {
             setResults([]);
             setErrorText("");
-            setIsSearching(false);
+            setHasSearched(false);
             return;
         }
 
-        const timeout = setTimeout(async () => {
-            try {
-                setIsSearching(true);
-                setErrorText("");
+        try {
+            setIsSearching(true);
+            setErrorText("");
+            setHasSearched(true);
 
-                const foundBooks = await searchBooks(trimmedQuery);
-                setResults(foundBooks);
-            } catch (error) {
-                console.error(error);
-                setErrorText(t("addBook.error"));
-                setResults([]);
-            } finally {
-                setIsSearching(false);
-            }
-        }, 500);
-
-        return () => clearTimeout(timeout);
-    }, [searchQuery]);
+            const foundBooks = await searchBooks(trimmedQuery);
+            setResults(foundBooks);
+        } catch (error) {
+            console.error(error);
+            setErrorText(t("addBook.error"));
+            setResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    }
 
     async function handleToggleBook(result: SearchBookResult) {
         try {
-            const isAlreadyStored = storedBookIds.includes(result.id);
+            setIsAddingBookId(result.id);
+
+            const workId = getOpenLibraryWorkId(result.id);
+            const storedBookId = storedBookMap[workId];
+            const isAlreadyStored = Boolean(storedBookId);
 
             if (isAlreadyStored) {
-                await removeUserBookFromSupabase(result.id);
-                setStoredBookIds((current) => current.filter((id) => id !== result.id));
+                await removeUserBookFromSupabase(storedBookId);
+
+                setStoredBookMap((current) => {
+                    const next = { ...current };
+                    delete next[workId];
+                    return next;
+                });
+
                 return;
             }
 
             const userId = await getCurrentUserId();
-            const savedBook = await upsertBookFromSearchResult(result);
-            await addBookToUserLibrary(savedBook.id, userId);
+            const savedBook = await upsertBookFromSearchResult({
+                ...result,
+                id: workId,
+            });
 
-            setStoredBookIds((current) =>
-                current.includes(result.id) ? current : [...current, result.id]
-            );
+            await addBookToUserLibrary(savedBook.id, userId);
+            triggerRefresh("books", "home");
+            setStoredBookMap((current) => ({
+                ...current,
+                [workId]: savedBook.id,
+            }));
         } catch (error) {
             console.error("Fout bij toevoegen of verwijderen van boek:", error);
+            showAppAlert(t("addBook.errorTitle"), t("addBook.toggleError"));
+        } finally {
+            setIsAddingBookId(null);
         }
     }
 
-    return (
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
-            <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-                <View style={styles.pageHeader}>
+    const screenContent = (
+        <View style={pageStyles.screen}>
+            <View style={styles.fixedHeaderContent}>
+                <View style={styles.headerRow}>
                     <Pressable onPress={() => router.back()} style={styles.backButton}>
                         <Feather name="chevron-left" size={22} color={theme.colors.accent} />
                     </Pressable>
 
-                    <Text style={styles.pageTitle}>{t("books.addBook")}</Text>
+                    <View style={pageStyles.pageHeader}>
+                        <Text style={pageStyles.pageTitle}>{t("books.addBook")}</Text>
+                    </View>
                 </View>
 
                 <Text style={styles.subtitle}>{t("addBook.subtitle")}</Text>
 
                 <View style={styles.searchRow}>
                     <View style={styles.searchBar}>
-                        <Feather name="search" size={18} color={theme.colors.textMuted} />
                         <TextInput
                             value={searchQuery}
                             onChangeText={setSearchQuery}
@@ -129,129 +155,165 @@ export default function AddBookScreen() {
                             placeholderTextColor={theme.colors.textMuted}
                             style={styles.searchInput}
                             returnKeyType="search"
+                            onSubmitEditing={() => void handleSearch()}
+                            autoCapitalize="none"
+                            autoCorrect={false}
                         />
                     </View>
+
+                    <Pressable
+                        style={[
+                            styles.searchButton,
+                            isSearching && styles.searchButtonDisabled,
+                        ]}
+                        onPress={() => void handleSearch()}
+                        disabled={isSearching}
+                    >
+                        <Feather name="search" size={18} color="#FFFFFF" />
+                    </Pressable>
                 </View>
+            </View>
 
-                {isSearching ? (
-                    <Text style={styles.stateText}>{t("addBook.searching")}</Text>
-                ) : null}
-
+            <ScrollView
+                style={pageStyles.screen}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
 
-                {results.length > 0 ? (
-                    <>
-                        <Text style={styles.resultsTitle}>{t("addBook.resultsTitle")}</Text>
-
-                        <View style={styles.resultsList}>
-                            {results.map((book) => {
-                                const isAdded = storedBookIds.includes(book.id);
-
-                                return (
-                                    <View key={book.id} style={styles.resultCard}>
-                                        {book.cover ? (
-                                            <Image source={{ uri: book.cover }} style={styles.coverImage} />
-                                        ) : (
-                                            <CoverPlaceholder title={book.title} />
-                                        )}
-
-                                        <View style={styles.resultInfo}>
-                                            <Text style={styles.bookTitle}>{book.title}</Text>
-                                            <Text style={styles.bookAuthor}>{book.author}</Text>
-
-                                            {book.firstPublishYear ? (
-                                                <Text style={styles.bookMeta}>
-                                                    {book.firstPublishYear}
-                                                </Text>
-                                            ) : null}
-
-                                            <Pressable
-                                                style={[
-                                                    styles.addButton,
-                                                    isAdded && styles.addButtonAdded,
-                                                ]}
-                                                onPress={() => handleToggleBook(book)}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.addButtonText,
-                                                        isAdded && styles.addButtonTextAdded,
-                                                    ]}
-                                                >
-                                                    {isAdded ? t("addBook.added") : t("addBook.add")}
-                                                </Text>
-                                            </Pressable>
-                                        </View>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </>
-                ) : null}
-
-                {!isSearching &&
-                searchQuery.trim() !== "" &&
-                results.length === 0 &&
-                !errorText ? (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyTitle}>{t("addBook.noResults")}</Text>
+                {isSearching ? (
+                    <View style={styles.inlineLoadingState}>
+                        <LottieView
+                            source={require("@/assets/animations/loading-book.json")}
+                            autoPlay
+                            loop
+                            style={styles.searchLoader}
+                        />
+                        <Text style={pageStyles.emptyText}>{t("addBook.searching")}</Text>
                     </View>
-                ) : null}
+                ) : !hasSearched ? null : results.length === 0 ? (
+                    <View style={styles.emptyCard}>
+                        <Text style={styles.emptyTitle}>{t("addBook.noResults")}</Text>
+                        <Text style={styles.emptyText}>{t("addBook.noResultsText")}</Text>
+                    </View>
+                ) : (
+                    <View style={styles.resultsList}>
+                        {results.map((book) => {
+                            const isAdding = isAddingBookId === book.id;
+                            const workId = getOpenLibraryWorkId(book.id);
+                            const isAdded = Boolean(storedBookMap[workId]);
 
-                {searchQuery.trim() === "" && results.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyTitle}>{t("addBook.emptyTitle")}</Text>
-                        <Text style={styles.emptyText}>{t("addBook.emptyText")}</Text>
+                            return (
+                                <View key={book.id} style={styles.resultCard}>
+                                    {book.cover ? (
+                                        <BookCover title={book.title} cover={book.cover} small />
+                                    ) : (
+                                        <CoverPlaceholder title={book.title} />
+                                    )}
+
+                                    <View style={styles.bookInfo}>
+                                        <Text style={styles.bookTitle}>{book.title}</Text>
+                                        <Text style={styles.bookAuthor}>{book.author}</Text>
+
+                                        {book.firstPublishYear ? (
+                                            <Text style={styles.bookMeta}>
+                                                {book.firstPublishYear}
+                                            </Text>
+                                        ) : null}
+                                    </View>
+
+                                    <Pressable
+                                        style={[
+                                            styles.addSmallButton,
+                                            isAdded && styles.addSmallButtonAdded,
+                                            isAdding && styles.addSmallButtonDisabled,
+                                        ]}
+                                        onPress={() => void handleToggleBook(book)}
+                                        disabled={isAdding}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.addSmallButtonText,
+                                                isAdded && styles.addSmallButtonTextAdded,
+                                            ]}
+                                        >
+                                            {isAdding
+                                                ? t("addBook.adding")
+                                                : isAdded
+                                                    ? t("addBook.added")
+                                                    : t("addBook.add")}
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+
+                {!hasSearched && trimmedQuery === "" ? (
+                    <View>
+                        <Text style={pageStyles.title}>{t("addBook.emptyTitle")}</Text>
+                        <Text style={pageStyles.emptyText}>{t("addBook.emptyText")}</Text>
                     </View>
                 ) : null}
             </ScrollView>
+        </View>
+    );
+
+    return (
+        <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
+            <AppHeader />
+
+            <KeyboardAvoidingView
+                style={pageStyles.safeArea}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+                {Platform.OS === "web" ? (
+                    screenContent
+                ) : (
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                        {screenContent}
+                    </TouchableWithoutFeedback>
+                )}
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
-        safeArea: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
+        scrollContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: theme.spacing.lg,
+            gap: theme.spacing.md,
         },
-        screen: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-        },
-        content: {
-            padding: theme.spacing.lg,
+        fixedHeaderContent: {
+            paddingHorizontal: theme.spacing.lg,
             paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.sm,
         },
-        pageHeader: {
+        headerRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
+            marginBottom: 4,
         },
         backButton: {
             width: 32,
             height: 32,
             alignItems: "center",
             justifyContent: "center",
-        },
-        pageTitle: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.xl,
-            fontWeight: theme.typography.fontWeight.semibold,
-        },
-        subtitle: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
+            marginTop: 2,
         },
         searchRow: {
-            marginBottom: theme.spacing.md,
+            flexDirection: "row",
+            gap: theme.spacing.xs,
+            alignItems: "center",
+            marginTop: theme.spacing.sm,
         },
         searchBar: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: theme.spacing.sm,
+            flex: 1,
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
@@ -260,99 +322,110 @@ function createStyles(theme: AppTheme) {
             paddingVertical: 12,
         },
         searchInput: {
-            flex: 1,
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
         },
-        stateText: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
+        searchButton: {
+            width: 48,
+            height: 48,
+            borderRadius: theme.radius.pill,
+            backgroundColor: theme.colors.accent,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        searchButtonDisabled: {
+            opacity: 0.7,
+        },
+        inlineLoadingState: {
+            alignItems: "center",
+            justifyContent: "center",
+            paddingVertical: theme.spacing.md,
+        },
+        searchLoader: {
+            width: 88,
+            height: 88,
+            marginBottom: 4,
         },
         errorText: {
-            color: theme.colors.accent,
+            color:"#D64545",
             fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.md,
-        },
-        resultsTitle: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: theme.spacing.sm,
         },
         resultsList: {
             gap: theme.spacing.md,
+            marginTop: theme.spacing.md,
         },
         resultCard: {
             flexDirection: "row",
-            gap: theme.spacing.md,
             alignItems: "center",
+            gap: theme.spacing.md,
             backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
             borderWidth: 1,
             borderColor: theme.colors.border,
-            borderRadius: theme.radius.md,
             padding: theme.spacing.md,
         },
-        coverImage: {
-            width: 70,
-            height: 100,
-            borderRadius: 12,
-            backgroundColor: theme.colors.accentSoft,
-        },
-        resultInfo: {
+        bookInfo: {
             flex: 1,
+            gap: 4,
         },
         bookTitle: {
             color: theme.colors.text,
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: 2,
         },
         bookAuthor: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
-            marginBottom: 4,
         },
         bookMeta: {
             color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: 10,
+            fontSize: theme.typography.fontSize.xs,
         },
-        addButton: {
-            alignSelf: "flex-start",
-            backgroundColor: theme.colors.accentSoft,
+        addSmallButton: {
+            backgroundColor: theme.colors.accent,
             borderRadius: theme.radius.pill,
             paddingHorizontal: 14,
-            paddingVertical: 9,
+            paddingVertical: 10,
+            alignItems: "center",
+            justifyContent: "center",
         },
-        addButtonAdded: {
-            backgroundColor: theme.colors.successSoft,
+        addSmallButtonDisabled: {
+            opacity: 0.7,
         },
-        addButtonText: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.xs,
+        addSmallButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
         },
-        addButtonTextAdded: {
-            color: theme.colors.success,
-        },
-        emptyState: {
+        emptyCard: {
             backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
             borderWidth: 1,
             borderColor: theme.colors.border,
-            borderRadius: theme.radius.lg,
-            padding: theme.spacing.lg,
-            marginTop: theme.spacing.lg,
+            padding: theme.spacing.md,
+            gap: theme.spacing.sm,
         },
         emptyTitle: {
             color: theme.colors.text,
-            fontSize: theme.typography.fontSize.lg,
+            fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: 6,
         },
         emptyText: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+        subtitle: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginTop: -theme.spacing.xs,
+            marginBottom: theme.spacing.sm,
+        },
+        addSmallButtonAdded: {
+            backgroundColor: theme.colors.successSoft,
+        },
+        addSmallButtonTextAdded: {
+            color: theme.colors.success,
         },
     });
 }

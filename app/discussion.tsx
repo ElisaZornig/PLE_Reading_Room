@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {
     Alert,
     FlatList,
@@ -32,11 +32,16 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { useFocusEffect } from "@react-navigation/native";
 import { getCurrentSupabaseUserId } from "@/src/services/supabaseUserBooks";
+import LottieView from 'lottie-react-native';
+import {subscribeToRefresh, triggerRefresh} from "@/src/utils/refreshEvents";
+import {createPageStyles} from "@/src/styles/pageStyles";
+import {t} from "@/src/i18n";
 
 export default function DiscussionScreen() {
     const theme = useAppTheme();
     const styles = createStyles(theme);
     const params = useLocalSearchParams();
+    const pageStyles = createPageStyles(theme);
 
     const clubId = useMemo(() => {
         const value = params.clubId;
@@ -62,9 +67,16 @@ export default function DiscussionScreen() {
     const [editingQuestionText, setEditingQuestionText] = useState("");
     const [savingEditedQuestionId, setSavingEditedQuestionId] = useState<string | null>(null);
     const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
-    async function loadDiscussion() {
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
+
+    const loadDiscussion = useCallback(async (showLoader = false) => {
         try {
-            setIsLoading(true);
+            if (showLoader) {
+                setIsLoading(true);
+            } else {
+                setIsRefreshing(true);
+            }
 
             const [questionData, role, userId] = await Promise.all([
                 fetchDiscussionQuestionsForClub({
@@ -97,14 +109,19 @@ export default function DiscussionScreen() {
             Alert.alert("Error", "Something went wrong while loading the discussion.");
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    }
+    }, [clubId]);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadDiscussion();
-        }, [clubId])
-    );
+    useEffect(() => {
+        void loadDiscussion(true);
+
+        const unsubscribe = subscribeToRefresh("discussion", () => {
+            void loadDiscussion(false);
+        });
+
+        return unsubscribe;
+    }, [loadDiscussion]);
 
     async function handleAddQuestion() {
         try {
@@ -124,6 +141,7 @@ export default function DiscussionScreen() {
             setNewQuestion("");
             setIsQuestionModalVisible(false);
             await loadDiscussion();
+            triggerRefresh("club");
         } catch (error) {
             const message =
                 error instanceof Error
@@ -134,7 +152,12 @@ export default function DiscussionScreen() {
             setIsSavingQuestion(false);
         }
     }
-
+    function toggleReplies(questionId: string) {
+        setExpandedQuestions((current) => ({
+            ...current,
+            [questionId]: !current[questionId],
+        }));
+    }
     async function handleAddReply(questionId: string) {
         const draft = replyDrafts[questionId]?.trim() ?? "";
 
@@ -158,6 +181,7 @@ export default function DiscussionScreen() {
             }));
 
             await loadDiscussion();
+            triggerRefresh("club");
         } catch (error) {
             const message =
                 error instanceof Error
@@ -199,6 +223,7 @@ export default function DiscussionScreen() {
             setEditingQuestionId(null);
             setEditingQuestionText("");
             await loadDiscussion();
+            triggerRefresh("club");
         } catch (error) {
             const message =
                 error instanceof Error
@@ -228,6 +253,7 @@ export default function DiscussionScreen() {
                             });
 
                             await loadDiscussion();
+                            triggerRefresh("club");
                         } catch (error) {
                             const message =
                                 error instanceof Error
@@ -362,28 +388,36 @@ export default function DiscussionScreen() {
                         <View style={styles.header}>
                             <View style={styles.titleRow}>
                                 <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                                    <Feather name="chevron-left" size={22} color={theme.colors.accent} />
                                 </Pressable>
 
-                                <Text style={styles.title}>Discussion</Text>
+                                <View style={pageStyles.pageHeader}>
+                                    <Text style={pageStyles.pageTitle}>{t("discussion.title")}</Text>
+                                </View>
+
+                                <View style={styles.headerSpacer} />
+
+                                <Pressable
+                                    style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+                                    onPress={() => void loadDiscussion(false)}
+                                    disabled={isRefreshing}
+                                >
+                                    <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
+                                </Pressable>
                             </View>
 
-                            <Text style={styles.subtitle}>
-                                Save questions and replies for your book club conversation.
-                            </Text>
+                            <Text style={pageStyles.pageSubtitle}>{t("discussion.subtitle")}</Text>
                         </View>
 
-                        <Pressable
-                            style={styles.openQuestionButton}
-                            onPress={() => setIsQuestionModalVisible(true)}
-                        >
-                            <Feather name="plus" size={18} color="#FFFFFF" />
-                            <Text style={styles.openQuestionButtonText}>Add question</Text>
-                        </Pressable>
 
                         {isLoading ? (
                             <View style={styles.stateWrapper}>
-                                <Text style={styles.stateText}>Loading discussion...</Text>
+                                <LottieView
+                                    source={require('@/assets/animations/loading-book.json')}
+                                    autoPlay
+                                    loop
+                                    style={{ width: 200, height: 200 }}
+                                />
                             </View>
                         ) : questions.length === 0 ? (
                             <View style={styles.emptyCard}>
@@ -404,6 +438,7 @@ export default function DiscussionScreen() {
                                     const replyDraft = replyDrafts[item.id] ?? "";
                                     const isSavingReply = savingReplyForQuestionId === item.id;
                                     const isClearingReplies = clearingRepliesForQuestionId === item.id;
+                                    const isRepliesExpanded = Boolean(expandedQuestions[item.id]);
 
                                     return (
                                         <View style={styles.questionCard}>
@@ -480,126 +515,158 @@ export default function DiscussionScreen() {
                                                     )}
                                                 </View>
                                             </View>
-
-                                            {replies.length > 0 ? (
-                                                <View style={styles.repliesSection}>
-                                                    <Text style={styles.repliesTitle}>
-                                                        Replies ({replies.length})
+                                            <View style={styles.repliesBlock}>
+                                                <Pressable
+                                                    style={styles.repliesToggle}
+                                                    onPress={() => toggleReplies(item.id)}
+                                                >
+                                                    <Text style={styles.repliesToggleText}>
+                                                        {t("discussion.repliesCount", { count: replies.length })}
                                                     </Text>
 
-                                                    {replies.map((reply) => {
-                                                        const authorLabel =
-                                                            reply.createdBy && reply.createdBy === currentUserId
-                                                                ? "You"
-                                                                : reply.authorName;
+                                                    <Feather
+                                                        name={isRepliesExpanded ? "chevron-up" : "chevron-down"}
+                                                        size={18}
+                                                        color={theme.colors.accent}
+                                                    />
+                                                </Pressable>
 
-                                                        return (
-                                                            <View key={reply.id} style={styles.replyCard}>
-                                                                <Text style={styles.replyAuthor}>{authorLabel}</Text>
+                                                {isRepliesExpanded ? (
+                                                    replies.length > 0 ? (
+                                                        <View style={styles.repliesSection}>
+                                                            {replies.map((reply) => {
+                                                                const authorLabel =
+                                                                    reply.createdBy && reply.createdBy === currentUserId
+                                                                        ? t("discussion.you")
+                                                                        : reply.authorName;
 
-                                                                {editingReplyId === reply.id ? (
-                                                                    <>
-                                                                        <TextInput
-                                                                            value={editingReplyText}
-                                                                            onChangeText={setEditingReplyText}
-                                                                            placeholder="Edit your reply"
-                                                                            placeholderTextColor={theme.colors.textMuted}
-                                                                            style={[styles.input, styles.replyEditInput]}
-                                                                            multiline
-                                                                            textAlignVertical="top"
-                                                                        />
+                                                                return (
+                                                                    <View key={reply.id} style={styles.replyCard}>
+                                                                        <Text style={styles.replyAuthor}>{authorLabel}</Text>
 
-                                                                        <View style={styles.replyActionsRow}>
-                                                                            <Pressable
-                                                                                style={styles.replyGhostButton}
-                                                                                onPress={handleCancelEditReply}
-                                                                            >
-                                                                                <Text style={styles.replyGhostButtonText}>Cancel</Text>
-                                                                            </Pressable>
+                                                                        {editingReplyId === reply.id ? (
+                                                                            <>
+                                                                                <TextInput
+                                                                                    value={editingReplyText}
+                                                                                    onChangeText={setEditingReplyText}
+                                                                                    placeholder={t("discussion.editReplyPlaceholder")}
+                                                                                    placeholderTextColor={theme.colors.textMuted}
+                                                                                    style={[styles.input, styles.replyEditInput]}
+                                                                                    multiline
+                                                                                    textAlignVertical="top"
+                                                                                />
 
-                                                                            <Pressable
-                                                                                style={[styles.replySmallButton, savingEditedReplyId === reply.id && styles.primaryButtonDisabled]}
-                                                                                onPress={handleSaveEditedReply}
-                                                                                disabled={savingEditedReplyId === reply.id}
-                                                                            >
-                                                                                <Text style={styles.replySmallButtonText}>
-                                                                                    {savingEditedReplyId === reply.id ? "Saving..." : "Save"}
-                                                                                </Text>
-                                                                            </Pressable>
-                                                                        </View>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Text style={styles.replyText}>{reply.reply}</Text>
-                                                                        <Text style={styles.replyMeta}>
-                                                                            Added {formatQuestionDate(reply.createdAt)}
-                                                                        </Text>
-
-                                                                        {reply.createdBy === currentUserId || clubRole === "owner" ? (
-                                                                            <View style={styles.replyActionsRow}>
-                                                                                {reply.createdBy === currentUserId ? (
+                                                                                <View style={styles.replyActionsRow}>
                                                                                     <Pressable
                                                                                         style={styles.replyGhostButton}
-                                                                                        onPress={() => handleStartEditReply(reply)}
+                                                                                        onPress={handleCancelEditReply}
                                                                                     >
-                                                                                        <Text style={styles.replyGhostButtonText}>Edit</Text>
+                                                                                        <Text style={styles.replyGhostButtonText}>
+                                                                                            {t("common.cancel")}
+                                                                                        </Text>
                                                                                     </Pressable>
+
+                                                                                    <Pressable
+                                                                                        style={[
+                                                                                            styles.replySmallButton,
+                                                                                            savingEditedReplyId === reply.id &&
+                                                                                            styles.primaryButtonDisabled,
+                                                                                        ]}
+                                                                                        onPress={handleSaveEditedReply}
+                                                                                        disabled={savingEditedReplyId === reply.id}
+                                                                                    >
+                                                                                        <Text style={styles.replySmallButtonText}>
+                                                                                            {savingEditedReplyId === reply.id
+                                                                                                ? t("discussion.saving")
+                                                                                                : t("common.save")}
+                                                                                        </Text>
+                                                                                    </Pressable>
+                                                                                </View>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <Text style={styles.replyText}>{reply.reply}</Text>
+                                                                                <Text style={styles.replyMeta}>
+                                                                                    {t("discussion.addedOn", {
+                                                                                        date: formatQuestionDate(reply.createdAt),
+                                                                                    })}
+                                                                                </Text>
+
+                                                                                {reply.createdBy === currentUserId || clubRole === "owner" ? (
+                                                                                    <View style={styles.replyActionsRow}>
+                                                                                        {reply.createdBy === currentUserId ? (
+                                                                                            <Pressable
+                                                                                                style={styles.replyGhostButton}
+                                                                                                onPress={() => handleStartEditReply(reply)}
+                                                                                            >
+                                                                                                <Text style={styles.replyGhostButtonText}>
+                                                                                                    {t("common.edit")}
+                                                                                                </Text>
+                                                                                            </Pressable>
+                                                                                        ) : null}
+
+                                                                                        <Pressable
+                                                                                            style={styles.replyGhostButton}
+                                                                                            onPress={() => handleDeleteReply(reply.id)}
+                                                                                            disabled={deletingReplyId === reply.id}
+                                                                                        >
+                                                                                            <Text style={styles.replyGhostButtonText}>
+                                                                                                {deletingReplyId === reply.id
+                                                                                                    ? t("discussion.deleting")
+                                                                                                    : t("common.delete")}
+                                                                                            </Text>
+                                                                                        </Pressable>
+                                                                                    </View>
                                                                                 ) : null}
+                                                                            </>
+                                                                        )}
+                                                                    </View>
+                                                                );
+                                                            })}
 
-                                                                                <Pressable
-                                                                                    style={styles.replyGhostButton}
-                                                                                    onPress={() => handleDeleteReply(reply.id)}
-                                                                                    disabled={deletingReplyId === reply.id}
-                                                                                >
-                                                                                    <Text style={styles.replyGhostButtonText}>
-                                                                                        {deletingReplyId === reply.id ? "Deleting..." : "Delete"}
-                                                                                    </Text>
-                                                                                </Pressable>
-                                                                            </View>
-                                                                        ) : null}
-                                                                    </>
-                                                                )}
-                                                            </View>
-                                                        );
-                                                    })}
+                                                            {clubRole === "owner" ? (
+                                                                <Pressable
+                                                                    style={styles.secondaryButton}
+                                                                    onPress={() => handleClearReplies(item.id)}
+                                                                    disabled={isClearingReplies}
+                                                                >
+                                                                    <Text style={styles.secondaryButtonText}>
+                                                                        {isClearingReplies
+                                                                            ? t("discussion.clearingReplies")
+                                                                            : t("discussion.clearReplies")}
+                                                                    </Text>
+                                                                </Pressable>
+                                                            ) : null}
+                                                        </View>
+                                                    ) : (
+                                                        <Text style={styles.emptyText}>{t("discussion.noRepliesYet")}</Text>
+                                                    )
+                                                ) : null}
 
-                                                    {clubRole === "owner" ? (
-                                                        <Pressable
-                                                            style={styles.secondaryButton}
-                                                            onPress={() => handleClearReplies(item.id)}
-                                                            disabled={isClearingReplies}
-                                                        >
-                                                            <Text style={styles.secondaryButtonText}>
-                                                                {isClearingReplies ? "Clearing..." : "Clear replies"}
-                                                            </Text>
-                                                        </Pressable>
-                                                    ) : null}
+                                                <View style={styles.replyComposer}>
+                                                    <TextInput
+                                                        value={replyDraft}
+                                                        onChangeText={(value) =>
+                                                            setReplyDrafts((current) => ({
+                                                                ...current,
+                                                                [item.id]: value,
+                                                            }))
+                                                        }
+                                                        placeholder={t("discussion.writeReply")}
+                                                        placeholderTextColor={theme.colors.textMuted}
+                                                        style={styles.replyInput}
+                                                    />
+
+                                                    <Pressable
+                                                        style={[styles.replyButton, isSavingReply && styles.primaryButtonDisabled]}
+                                                        onPress={() => handleAddReply(item.id)}
+                                                        disabled={isSavingReply}
+                                                    >
+                                                        <Text style={styles.replyButtonText}>
+                                                            {isSavingReply ? t("discussion.savingShort") : t("discussion.reply")}
+                                                        </Text>
+                                                    </Pressable>
                                                 </View>
-                                            ) : null}
-
-                                            <View style={styles.replyComposer}>
-                                                <TextInput
-                                                    value={replyDraft}
-                                                    onChangeText={(value) =>
-                                                        setReplyDrafts((current) => ({
-                                                            ...current,
-                                                            [item.id]: value,
-                                                        }))
-                                                    }
-                                                    placeholder="Write a reply"
-                                                    placeholderTextColor={theme.colors.textMuted}
-                                                    style={styles.replyInput}
-                                                />
-
-                                                <Pressable
-                                                    style={[styles.replyButton, isSavingReply && styles.primaryButtonDisabled]}
-                                                    onPress={() => handleAddReply(item.id)}
-                                                    disabled={isSavingReply}
-                                                >
-                                                    <Text style={styles.replyButtonText}>
-                                                        {isSavingReply ? "..." : "Reply"}
-                                                    </Text>
-                                                </Pressable>
                                             </View>
                                         </View>
                                     );
@@ -653,6 +720,12 @@ export default function DiscussionScreen() {
                                 </View>
                             </TouchableWithoutFeedback>
                         </Modal>
+                        <Pressable
+                            style={styles.fabButton}
+                            onPress={() => setIsQuestionModalVisible(true)}
+                        >
+                            <Feather name="plus" size={22} color="#FFFFFF" />
+                        </Pressable>
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
@@ -694,32 +767,6 @@ function createStyles(theme: AppTheme) {
             height: 32,
             alignItems: "center",
             justifyContent: "center",
-        },
-        title: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.xxl,
-            fontWeight: theme.typography.fontWeight.bold,
-        },
-        subtitle: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: theme.typography.lineHeight.sm,
-        },
-        openQuestionButton: {
-            alignSelf: "flex-start",
-            flexDirection: "row",
-            alignItems: "center",
-            gap: theme.spacing.sm,
-            backgroundColor: theme.colors.accent,
-            borderRadius: theme.radius.pill,
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            marginBottom: theme.spacing.lg,
-        },
-        openQuestionButtonText: {
-            color: "#FFFFFF",
-            fontWeight: theme.typography.fontWeight.semibold,
-            fontSize: theme.typography.fontSize.sm,
         },
         input: {
             backgroundColor: theme.colors.surface,
@@ -779,7 +826,7 @@ function createStyles(theme: AppTheme) {
         },
         listContent: {
             gap: theme.spacing.md,
-            paddingBottom: theme.spacing.xl,
+            paddingBottom: 80,
         },
         questionCard: {
             backgroundColor: theme.colors.card,
@@ -971,6 +1018,55 @@ function createStyles(theme: AppTheme) {
             color: "#FFFFFF",
             fontSize: theme.typography.fontSize.xs,
             fontWeight: theme.typography.fontWeight.semibold,
+        },
+        headerSpacer: {
+            flex: 1,
+        },
+
+        refreshButton: {
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+        refreshButtonDisabled: {
+            opacity: 0.6,
+        },
+        fabButton: {
+            position: "absolute",
+            right: theme.spacing.lg,
+            bottom: theme.spacing.xl,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: theme.colors.accent,
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: "#000",
+            shadowOpacity: 0.15,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 4,
+        },
+        repliesBlock: {
+            gap: theme.spacing.sm,
+        },
+
+        repliesToggle: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+            paddingTop: theme.spacing.xs,
+        },
+
+        repliesToggleText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
         },
     });
 }

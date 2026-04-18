@@ -47,11 +47,9 @@ export function AppHeader() {
     return (
         <View style={styles.topBar}>
             <View style={styles.brandRow}>
-                <View style={styles.logoBox}>
+                <Pressable style={styles.logoBox} onPress={() => router.push("/")}>
                     <Feather name="book-open" size={20} color="#FFFFFF" />
-                </View>
-
-                <Text style={styles.brand}>Boekenclub</Text>
+                </Pressable>
             </View>
 
             <Pressable

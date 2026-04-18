@@ -3,15 +3,19 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Image,
+    KeyboardAvoidingView,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     View,
+    Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LottieView from "lottie-react-native";
+
 import { AppHeader } from "@/src/components/AppHeader";
 import { CoverPlaceholder } from "@/src/components/CoverPlaceholder";
 import { StarRatingInput } from "@/src/components/StarRatingInput";
@@ -20,10 +24,13 @@ import {
     fetchSingleUserBookFromSupabase,
     updateUserBookInSupabase,
 } from "@/src/services/supabaseUserBooks";
+import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { Book, BookStatus, ProgressMode } from "@/src/types/book";
-import { getBookStatusLabel } from "@/src/utils/bookStatus";
+import { getBookStatusColors, getBookStatusLabel } from "@/src/utils/bookStatus";
+import { showAppAlert } from "@/src/utils/appAlert";
+import {triggerRefresh} from "@/src/utils/refreshEvents";
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
@@ -31,7 +38,9 @@ function clamp(value: number, min: number, max: number) {
 
 export default function BookDetailScreen() {
     const theme = useAppTheme();
+    const pageStyles = createPageStyles(theme);
     const styles = createStyles(theme);
+
     const { id } = useLocalSearchParams<{ id: string }>();
     const decodedId = typeof id === "string" ? decodeURIComponent(id) : "";
 
@@ -61,7 +70,8 @@ export default function BookDetailScreen() {
 
                     const initialProgressMode =
                         foundBook.progressMode ??
-                        (foundBook.currentPage !== undefined || foundBook.totalPages !== undefined
+                        (foundBook.currentPage !== undefined ||
+                        foundBook.totalPages !== undefined
                             ? "pages"
                             : "percentage");
 
@@ -76,12 +86,16 @@ export default function BookDetailScreen() {
             } catch (error) {
                 console.error("Fout bij laden van boek uit Supabase:", error);
                 setBook(null);
+                showAppAlert(
+                    t("bookDetail.loadErrorTitle"),
+                    t("bookDetail.loadErrorMessage")
+                );
             } finally {
                 setIsLoading(false);
             }
         }
 
-        loadBook();
+        void loadBook();
     }, [decodedId]);
 
     async function handleSave() {
@@ -155,9 +169,14 @@ export default function BookDetailScreen() {
 
             await updateUserBookInSupabase(updatedBook);
             setBook(updatedBook);
+            triggerRefresh("books", "home", "club");
             router.back();
         } catch (error) {
             console.error("Fout bij opslaan van boekdetails:", error);
+            showAppAlert(
+                t("bookDetail.saveErrorTitle"),
+                t("bookDetail.saveErrorMessage")
+            );
         } finally {
             setIsSaving(false);
         }
@@ -167,10 +186,16 @@ export default function BookDetailScreen() {
 
     if (isLoading) {
         return (
-            <SafeAreaView style={styles.safeArea} edges={["top"]}>
+            <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
                 <AppHeader />
-                <View style={styles.screen}>
-                    <Text style={styles.stateText}>Laden...</Text>
+                <View style={styles.loadingWrapper}>
+                    <LottieView
+                        source={require("@/assets/animations/loading-book.json")}
+                        autoPlay
+                        loop
+                        style={styles.loadingAnimation}
+                    />
+                    <Text style={pageStyles.emptyText}>{t("bookDetail.loading")}</Text>
                 </View>
             </SafeAreaView>
         );
@@ -178,20 +203,36 @@ export default function BookDetailScreen() {
 
     if (!book) {
         return (
-            <SafeAreaView style={styles.safeArea} edges={["top"]}>
+            <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
                 <AppHeader />
-                <View style={styles.screen}>
-                    <View style={styles.pageHeader}>
-                        <Pressable onPress={() => router.back()} style={styles.backButton}>
-                            <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                        </Pressable>
+                <View style={pageStyles.screen}>
+                    <View style={styles.fixedHeaderContent}>
+                        <View style={styles.headerRow}>
+                            <Pressable onPress={() => router.back()} style={styles.backButton}>
+                                <Feather
+                                    name="chevron-left"
+                                    size={22}
+                                    color={theme.colors.accent}
+                                />
+                            </Pressable>
 
-                        <Text style={styles.pageTitle}>{t("bookDetail.title")}</Text>
+                            <View style={pageStyles.pageHeader}>
+                                <Text style={pageStyles.pageTitle}>
+                                    {t("bookDetail.title")}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
 
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>{t("bookDetail.notFoundTitle")}</Text>
-                        <Text style={styles.sectionText}>{t("bookDetail.notFoundText")}</Text>
+                    <View style={styles.notFoundContent}>
+                        <View style={pageStyles.sectionCard}>
+                            <Text style={pageStyles.title}>
+                                {t("bookDetail.notFoundTitle")}
+                            </Text>
+                            <Text style={pageStyles.emptyText}>
+                                {t("bookDetail.notFoundText")}
+                            </Text>
+                        </View>
                     </View>
                 </View>
             </SafeAreaView>
@@ -202,205 +243,254 @@ export default function BookDetailScreen() {
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
             <AppHeader />
 
-            <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-                <View style={styles.pageHeader}>
-                    <Pressable onPress={() => router.back()} style={styles.backButton}>
-                        <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                    </Pressable>
+            <KeyboardAvoidingView
+                style={styles.safeArea}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+                <View style={pageStyles.screen}>
+                    <View style={styles.fixedHeaderContent}>
+                        <View style={styles.headerRow}>
+                            <Pressable onPress={() => router.back()} style={styles.backButton}>
+                                <Feather
+                                    name="chevron-left"
+                                    size={22}
+                                    color={theme.colors.accent}
+                                />
+                            </Pressable>
 
-                    <Text style={styles.pageTitle}>{t("bookDetail.title")}</Text>
-                </View>
-
-                <View style={styles.sectionCard}>
-                    <View style={styles.bookTopRow}>
-                        {book.cover ? (
-                            <Image source={{ uri: book.cover }} style={styles.coverImage} />
-                        ) : (
-                            <CoverPlaceholder title={book.title} />
-                        )}
-
-                        <View style={styles.bookInfo}>
-                            <Text style={styles.bookTitle}>{book.title}</Text>
-                            <Text style={styles.bookAuthor}>{book.author}</Text>
+                            <View style={pageStyles.pageHeader}>
+                                <Text style={pageStyles.pageTitle}>
+                                    {t("bookDetail.title")}
+                                </Text>
+                            </View>
                         </View>
                     </View>
-                </View>
 
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>{t("bookDetail.status")}</Text>
+                    <ScrollView
+                        style={pageStyles.screen}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={pageStyles.sectionCard}>
+                            <View style={styles.bookTopRow}>
+                                {book.cover ? (
+                                    <Image source={{ uri: book.cover }} style={styles.coverImage} />
+                                ) : (
+                                    <CoverPlaceholder title={book.title} />
+                                )}
 
-                    <View style={styles.chipRow}>
-                        {statusOptions.map((option) => {
-                            const isActive = status === option;
+                                <View style={styles.bookInfo}>
+                                    <Text style={styles.bookTitle}>{book.title}</Text>
+                                    <Text style={styles.bookAuthor}>{book.author}</Text>
+                                </View>
+                            </View>
+                        </View>
 
-                            return (
-                                <Pressable
-                                    key={option}
-                                    onPress={() => setStatus(option)}
-                                    style={[styles.chip, isActive && styles.chipActive]}
-                                >
-                                    <Text
-                                        style={[styles.chipText, isActive && styles.chipTextActive]}
+                        <View style={pageStyles.sectionCard}>
+                            <Text style={pageStyles.title}>{t("bookDetail.status")}</Text>
+
+                            <View style={styles.chipRow}>
+                                {statusOptions.map((option) => {
+                                    const isActive = status === option;
+                                    const statusColors = getBookStatusColors(option, theme);
+
+                                    return (
+                                        <Pressable
+                                            key={option}
+                                            onPress={() => setStatus(option)}
+                                            style={[
+                                                styles.chip,
+                                                isActive && {
+                                                    backgroundColor: statusColors.backgroundColor,
+                                                },
+                                            ]}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.chipText,
+                                                    isActive && {
+                                                        color: statusColors.textColor,
+                                                        fontWeight:
+                                                        theme.typography.fontWeight.semibold,
+                                                    },
+                                                ]}
+                                            >
+                                                {getBookStatusLabel(option)}
+                                            </Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </View>
+
+                        {status === "reading" ? (
+                            <View style={pageStyles.sectionCard}>
+                                <Text style={pageStyles.title}>{t("bookDetail.progress")}</Text>
+
+                                <View style={styles.modeRow}>
+                                    <Pressable
+                                        onPress={() => setProgressMode("percentage")}
+                                        style={[
+                                            styles.modeChip,
+                                            progressMode === "percentage" &&
+                                            styles.modeChipActive,
+                                        ]}
                                     >
-                                        {getBookStatusLabel(option)}
-                                    </Text>
-                                </Pressable>
-                            );
-                        })}
-                    </View>
-                </View>
+                                        <Text
+                                            style={[
+                                                styles.modeChipText,
+                                                progressMode === "percentage" &&
+                                                styles.modeChipTextActive,
+                                            ]}
+                                        >
+                                            {t("bookDetail.percentage")}
+                                        </Text>
+                                    </Pressable>
 
-                {status === "reading" ? (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>{t("bookDetail.progress")}</Text>
-
-                        <Text style={styles.fieldLabel}>{t("bookDetail.progressType")}</Text>
-
-                        <View style={styles.modeRow}>
-                            <Pressable
-                                onPress={() => setProgressMode("percentage")}
-                                style={[
-                                    styles.modeChip,
-                                    progressMode === "percentage" && styles.modeChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.modeChipText,
-                                        progressMode === "percentage" && styles.modeChipTextActive,
-                                    ]}
-                                >
-                                    {t("bookDetail.percentage")}
-                                </Text>
-                            </Pressable>
-
-                            <Pressable
-                                onPress={() => setProgressMode("pages")}
-                                style={[
-                                    styles.modeChip,
-                                    progressMode === "pages" && styles.modeChipActive,
-                                ]}
-                            >
-                                <Text
-                                    style={[
-                                        styles.modeChipText,
-                                        progressMode === "pages" && styles.modeChipTextActive,
-                                    ]}
-                                >
-                                    {t("bookDetail.pages")}
-                                </Text>
-                            </Pressable>
-                        </View>
-
-                        {progressMode === "percentage" ? (
-                            <View style={styles.progressBlock}>
-                                <Text style={styles.progressValue}>{Math.round(progress)}%</Text>
-
-                                <Slider
-                                    value={progress}
-                                    onValueChange={setProgress}
-                                    minimumValue={0}
-                                    maximumValue={100}
-                                    step={1}
-                                    minimumTrackTintColor={theme.colors.accent}
-                                    maximumTrackTintColor={theme.colors.border}
-                                    thumbTintColor={theme.colors.accent}
-                                />
-                            </View>
-                        ) : (
-                            <View style={styles.pageInputs}>
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.fieldLabel}>{t("bookDetail.currentPage")}</Text>
-                                    <TextInput
-                                        value={currentPage}
-                                        onChangeText={setCurrentPage}
-                                        keyboardType="numeric"
-                                        style={styles.input}
-                                        placeholder="0"
-                                        placeholderTextColor={theme.colors.textMuted}
-                                    />
+                                    <Pressable
+                                        onPress={() => setProgressMode("pages")}
+                                        style={[
+                                            styles.modeChip,
+                                            progressMode === "pages" && styles.modeChipActive,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.modeChipText,
+                                                progressMode === "pages" &&
+                                                styles.modeChipTextActive,
+                                            ]}
+                                        >
+                                            {t("bookDetail.pages")}
+                                        </Text>
+                                    </Pressable>
                                 </View>
 
-                                <View style={styles.inputGroup}>
-                                    <Text style={styles.fieldLabel}>{t("bookDetail.totalPages")}</Text>
-                                    <TextInput
-                                        value={totalPages}
-                                        onChangeText={setTotalPages}
-                                        keyboardType="numeric"
-                                        style={styles.input}
-                                        placeholder="320"
-                                        placeholderTextColor={theme.colors.textMuted}
-                                    />
-                                </View>
-                            </View>
-                        )}
-                    </View>
-                ) : null}
+                                {progressMode === "percentage" ? (
+                                    <View style={styles.progressBlock}>
+                                        <Text style={styles.progressValue}>
+                                            {Math.round(progress)}%
+                                        </Text>
 
-                {(status === "finished" || status === "dnf") ? (
-                    <View style={styles.sectionCard}>
-                        <Text style={styles.sectionTitle}>{t("bookDetail.reviewTitle")}</Text>
+                                        <Slider
+                                            value={progress}
+                                            onValueChange={setProgress}
+                                            minimumValue={0}
+                                            maximumValue={100}
+                                            step={1}
+                                            minimumTrackTintColor={theme.colors.accent}
+                                            maximumTrackTintColor={theme.colors.border}
+                                            thumbTintColor={theme.colors.accent}
+                                        />
+                                    </View>
+                                ) : (
+                                    <View style={styles.pageInputs}>
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.fieldLabel}>
+                                                {t("bookDetail.currentPage")}
+                                            </Text>
+                                            <TextInput
+                                                value={currentPage}
+                                                onChangeText={setCurrentPage}
+                                                keyboardType="numeric"
+                                                style={styles.input}
+                                                placeholder="0"
+                                                placeholderTextColor={theme.colors.textMuted}
+                                            />
+                                        </View>
 
-                        {status === "dnf" ? (
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.fieldLabel}>{t("bookDetail.dnfReason")}</Text>
-                                <TextInput
-                                    value={dnfReason}
-                                    onChangeText={setDnfReason}
-                                    style={styles.input}
-                                    placeholder={t("bookDetail.dnfReason")}
-                                    placeholderTextColor={theme.colors.textMuted}
-                                />
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.fieldLabel}>
+                                                {t("bookDetail.totalPages")}
+                                            </Text>
+                                            <TextInput
+                                                value={totalPages}
+                                                onChangeText={setTotalPages}
+                                                keyboardType="numeric"
+                                                style={styles.input}
+                                                placeholder="320"
+                                                placeholderTextColor={theme.colors.textMuted}
+                                            />
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         ) : null}
 
-                        <StarRatingInput value={rating} onChange={setRating} />
+                        {status === "finished" || status === "dnf" ? (
+                            <View style={pageStyles.sectionCard}>
+                                <Text style={pageStyles.title}>
+                                    {t("bookDetail.reviewTitle")}
+                                </Text>
 
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.fieldLabel}>{t("bookDetail.reviewTitle")}</Text>
-                            <TextInput
-                                value={review}
-                                onChangeText={setReview}
-                                style={styles.textArea}
-                                placeholder={t("bookDetail.reviewPlaceholder")}
-                                placeholderTextColor={theme.colors.textMuted}
-                                multiline
-                                textAlignVertical="top"
-                            />
-                        </View>
+                                {status === "dnf" ? (
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.fieldLabel}>
+                                            {t("bookDetail.dnfReason")}
+                                        </Text>
+                                        <TextInput
+                                            value={dnfReason}
+                                            onChangeText={setDnfReason}
+                                            style={styles.input}
+                                            placeholder={t("bookDetail.dnfReason")}
+                                            placeholderTextColor={theme.colors.textMuted}
+                                        />
+                                    </View>
+                                ) : null}
+
+                                <StarRatingInput value={rating} onChange={setRating} />
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.fieldLabel}>
+                                        {t("bookDetail.reviewTitle")}
+                                    </Text>
+                                    <TextInput
+                                        value={review}
+                                        onChangeText={setReview}
+                                        style={styles.textArea}
+                                        placeholder={t("bookDetail.reviewPlaceholder")}
+                                        placeholderTextColor={theme.colors.textMuted}
+                                        multiline
+                                        textAlignVertical="top"
+                                    />
+                                </View>
+                            </View>
+                        ) : null}
+                    </ScrollView>
+
+                    <View style={styles.footer}>
+                        <Pressable
+                            style={[
+                                styles.saveButton,
+                                isSaving && styles.saveButtonDisabled,
+                            ]}
+                            onPress={handleSave}
+                            disabled={isSaving}
+                        >
+                            <Text style={styles.saveButtonText}>
+                                {isSaving ? t("bookDetail.saving") : t("bookDetail.save")}
+                            </Text>
+                        </Pressable>
                     </View>
-                ) : null}
-
-                <Pressable
-                    style={styles.saveButton}
-                    onPress={handleSave}
-                    disabled={isSaving}
-                >
-                    <Text style={styles.saveButtonText}>
-                        {isSaving ? "..." : t("bookDetail.save")}
-                    </Text>
-                </Pressable>
-            </ScrollView>
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        fixedHeaderContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.sm,
+        },
         safeArea: {
             flex: 1,
             backgroundColor: theme.colors.background,
         },
-        screen: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-        },
-        content: {
-            padding: theme.spacing.lg,
-            paddingTop: theme.spacing.lg,
-            gap: theme.spacing.lg,
-        },
-        pageHeader: {
+        headerRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: theme.spacing.sm,
@@ -411,44 +501,46 @@ function createStyles(theme: AppTheme) {
             alignItems: "center",
             justifyContent: "center",
         },
-        pageTitle: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.xl,
-            fontWeight: theme.typography.fontWeight.semibold,
-        },
-        stateText: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            padding: theme.spacing.lg,
-        },
-        sectionCard: {
-            backgroundColor: theme.colors.surface,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius.lg,
-            padding: theme.spacing.lg,
+        scrollContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingBottom: theme.spacing.md,
             gap: theme.spacing.md,
         },
-        sectionTitle: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
+        loadingWrapper: {
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.background,
         },
-        sectionText: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: 20,
+        loadingAnimation: {
+            width: 180,
+            height: 180,
+            marginBottom: 8,
+        },
+        notFoundContent: {
+            flex: 1,
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.md,
         },
         bookTopRow: {
             flexDirection: "row",
             gap: theme.spacing.lg,
             alignItems: "center",
         },
-        coverImage: {
+        coverWrap: {
+            width: 90,
+            height: 130,
+        },
+        coverImageWrap: {
             width: 90,
             height: 130,
             borderRadius: 14,
+            overflow: "hidden",
             backgroundColor: theme.colors.accentSoft,
+        },
+        coverMask: {
+            width: "100%",
+            height: "100%",
         },
         bookInfo: {
             flex: 1,
@@ -469,24 +561,16 @@ function createStyles(theme: AppTheme) {
             gap: theme.spacing.sm,
         },
         chip: {
-            backgroundColor: theme.colors.card,
+            backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: theme.radius.pill,
             paddingHorizontal: 12,
             paddingVertical: 10,
         },
-        chipActive: {
-            backgroundColor: theme.colors.accentSoft,
-            borderColor: theme.colors.accentSoft,
-        },
         chipText: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
-        },
-        chipTextActive: {
-            color: theme.colors.accent,
-            fontWeight: theme.typography.fontWeight.semibold,
         },
         fieldLabel: {
             color: theme.colors.text,
@@ -499,7 +583,7 @@ function createStyles(theme: AppTheme) {
         },
         modeChip: {
             flex: 1,
-            backgroundColor: theme.colors.card,
+            backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: theme.radius.pill,
@@ -533,7 +617,7 @@ function createStyles(theme: AppTheme) {
             gap: 8,
         },
         input: {
-            backgroundColor: theme.colors.card,
+            backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: theme.radius.md,
@@ -544,7 +628,7 @@ function createStyles(theme: AppTheme) {
         },
         textArea: {
             minHeight: 120,
-            backgroundColor: theme.colors.card,
+            backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: theme.radius.md,
@@ -553,18 +637,32 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
         },
+        footer: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.sm,
+            paddingBottom: theme.spacing.lg,
+            backgroundColor: theme.colors.background,
+        },
         saveButton: {
             backgroundColor: theme.colors.accent,
             borderRadius: theme.radius.pill,
             paddingVertical: 14,
             alignItems: "center",
             justifyContent: "center",
-            marginBottom: theme.spacing.lg,
+        },
+        saveButtonDisabled: {
+            opacity: 0.7,
         },
         saveButtonText: {
             color: "#FFFFFF",
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
+        },
+        coverImage: {
+            width: 90,
+            height: 130,
+            borderRadius: 14,
+            backgroundColor: theme.colors.accentSoft,
         },
     });
 }

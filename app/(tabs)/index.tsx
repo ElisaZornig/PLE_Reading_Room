@@ -1,7 +1,16 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {ReactNode, useCallback, useEffect, useRef, useState} from "react";
+import {
+    Animated,
+    Pressable,
+    ScrollView,
+    StyleProp,
+    StyleSheet,
+    Text,
+    View,
+    ViewStyle,
+} from "react-native";
 import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -12,18 +21,74 @@ import {
     fetchClubOverviewFromSupabase,
     type ClubOverview,
 } from "@/src/services/supabaseClub";
-import {fetchCurrentUserDisplayName, fetchUserBooksFromSupabase} from "@/src/services/supabaseUserBooks";
-import { Book } from "@/src/types/book";
+import {
+    fetchCurrentUserDisplayName,
+    fetchUserBooksFromSupabase,
+} from "@/src/services/supabaseUserBooks";
+import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
+import { Book } from "@/src/types/book";
+import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 
+type PressableCardProps = {
+    onPress: () => void;
+    children: ReactNode;
+    style?: StyleProp<ViewStyle>;
+    disabled?: boolean;
+};
+
+function PressableCard({
+                           onPress,
+                           children,
+                           style,
+                           disabled = false,
+                       }: PressableCardProps) {
+    const scale = useRef(new Animated.Value(1)).current;
+
+    function handlePressIn() {
+        Animated.spring(scale, {
+            toValue: 0.985,
+            useNativeDriver: true,
+        }).start();
+    }
+
+    function handlePressOut() {
+        Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+        }).start();
+    }
+
+    return (
+        <Pressable
+            onPress={onPress}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            disabled={disabled}
+        >
+            <Animated.View
+                style={[
+                    style,
+                    {
+                        transform: [{ scale }],
+                    },
+                ]}
+            >
+                {children}
+            </Animated.View>
+        </Pressable>
+    );
+}
 
 export default function HomeScreen() {
     const [books, setBooks] = useState<Book[]>([]);
-    const theme = useAppTheme();
-    const styles = createStyles(theme);
     const [club, setClub] = useState<ClubOverview | null>(null);
     const [displayName, setDisplayName] = useState("");
+
+    const theme = useAppTheme();
+    const pageStyles = createPageStyles(theme);
+    const styles = createStyles(theme);
 
     const booksSortedByUpdated = [...books].sort((a, b) => {
         const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -31,27 +96,16 @@ export default function HomeScreen() {
         return bTime - aTime;
     });
 
-    const currentBook = booksSortedByUpdated.find(
-        (book) => book.status === "reading"
-    );
+    const currentBook = booksSortedByUpdated.find((book) => book.status === "reading");
 
     const listBooks = booksSortedByUpdated
         .filter((book) => book.id !== currentBook?.id)
         .slice(0, 4);
 
-    const listCardScale = useRef(new Animated.Value(1)).current;
-
-    const animateIn = () => {
-        Animated.spring(listCardScale, {
-            toValue: 0.97,
-            useNativeDriver: true,
-        }).start();
-    };
-
     function formatMeetingLabel(isoDate: string) {
         const date = new Date(isoDate);
 
-        return new Intl.DateTimeFormat("en-GB", {
+        return new Intl.DateTimeFormat(undefined, {
             weekday: "long",
             day: "numeric",
             month: "long",
@@ -66,7 +120,9 @@ export default function HomeScreen() {
         const hasTotalPages = typeof book.totalPages === "number";
 
         if (hasProgress && hasCurrentPage && hasTotalPages) {
-            return `${book.progress}% • ${t("home.page")} ${book.currentPage} ${t("home.pageOf")} ${book.totalPages}`;
+            return `${book.progress}% • ${t("home.page")} ${book.currentPage} ${t(
+                "home.pageOf"
+            )} ${book.totalPages}`;
         }
 
         if (hasProgress) {
@@ -84,12 +140,6 @@ export default function HomeScreen() {
         return t("home.noProgressYet");
     }
 
-    const animateOut = () => {
-        Animated.spring(listCardScale, {
-            toValue: 1,
-            useNativeDriver: true,
-        }).start();
-    };
     async function loadHomeData() {
         try {
             const [supabaseBooks, clubData, currentUserName] = await Promise.all([
@@ -109,153 +159,157 @@ export default function HomeScreen() {
         }
     }
 
-    useFocusEffect(
-        useCallback(() => {
-            loadHomeData();
-        }, [])
-    );
+    useEffect(() => {
+        void loadHomeData();
+
+        const unsubscribe = subscribeToRefresh("home", () => {
+            void loadHomeData();
+        });
+
+        return unsubscribe;
+    }, [loadHomeData]);
+
     return (
-        <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
-            edges={["top"]}
-        >
+        <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
             <AppHeader />
 
             <ScrollView
-                style={styles.screen}
-                contentContainerStyle={styles.content}
+                style={pageStyles.screen}
+                contentContainerStyle={pageStyles.content}
+                showsVerticalScrollIndicator={false}
             >
+                <View style={pageStyles.pageHeader}>
+                    <Text style={pageStyles.pageTitle}>
+                        {t("home.welcome", {
+                            name: displayName || t("home.fallbackName"),
+                        })}
+                    </Text>
+                </View>
 
-                <Text style={styles.title}>
-                    {t("home.welcome", {
-                        name: displayName || t("home.fallbackName"),
-                    })}
-                </Text>
-                    <Text style={styles.subtitle}>{t("home.subtitle")}</Text>
+                <Text style={pageStyles.pageSubtitle}>{t("home.subtitle")}</Text>
 
                 {currentBook ? (
-                    <Pressable onPress={() => router.push("/books")}>
-                        <View style={styles.bookRow}>
-                            <View style={styles.bookInfo}>
-                                <Text style={styles.label}>{t("home.currentlyReading")}</Text>
-                                <Text style={styles.bookTitle}>{currentBook.title}</Text>
-                                <Text style={styles.bookMeta}>{currentBook.author}</Text>
-                                <Text style={styles.bookMeta}>
-                                    {getCurrentBookProgressText(currentBook)}
-                                </Text>
+                    <PressableCard onPress={() => router.push(`/book/${currentBook.id}`)} style={pageStyles.rowCard}>
+                        <View style={styles.bookInfo}>
+                            <Text style={pageStyles.sectionLabel}>{t("home.currentlyReading")}</Text>
+                            <Text style={pageStyles.title}>{currentBook.title}</Text>
+                            <Text style={styles.bookMeta}>{currentBook.author}</Text>
+                            <Text style={styles.bookMeta}>
+                                {getCurrentBookProgressText(currentBook)}
+                            </Text>
+
+                            <View style={styles.progressWrap}>
                                 <Progress.Bar
                                     progress={(currentBook.progress ?? 0) / 100}
-                                    width={230}
-                                    borderColor={theme.colors.surface}
+                                    width={null}
+                                    borderColor={theme.colors.card}
                                     unfilledColor={theme.colors.border}
                                     color={theme.colors.accent}
                                 />
                             </View>
-
-                            <BookCover title={currentBook.title} cover={currentBook.cover} />
                         </View>
-                    </Pressable>
+
+                        <BookCover title={currentBook.title} cover={currentBook.cover} />
+                    </PressableCard>
                 ) : (
-                    <Pressable onPress={() => router.push("/books")}>
-                        <View style={styles.emptyCard}>
-                            <Text style={styles.label}>{t("home.currentlyReading")}</Text>
-                            <Text style={styles.bookTitle}>{t("home.noCurrentBookTitle")}</Text>
-                            <Text style={styles.bookMeta}>{t("home.noCurrentBookText")}</Text>
-                        </View>
-                    </Pressable>
+                    <PressableCard
+                        onPress={() => router.push("/books")}
+                        style={pageStyles.sectionCard}
+                    >
+                        <Text style={pageStyles.sectionLabel}>{t("home.currentlyReading")}</Text>
+                        <Text style={pageStyles.title}>{t("home.noCurrentBookTitle")}</Text>
+                        <Text style={pageStyles.emptyText}>{t("home.noCurrentBookText")}</Text>
+                    </PressableCard>
                 )}
+
                 {club ? (
-                    <Pressable onPress={() => router.push("/club")}>
-                        <View style={styles.bookRow}>
-                            <View style={styles.bookInfo}>
-                                <Text style={styles.label}>{t("home.clubSection")}</Text>
-                                <Text style={styles.bookTitle}>{club.name}</Text>
+                    <PressableCard onPress={() => router.push("/club")} style={pageStyles.rowCard}>
+                        <View style={styles.bookInfo}>
+                            <Text style={pageStyles.sectionLabel}>{t("home.clubSection")}</Text>
+                            <Text style={pageStyles.title}>{club.name}</Text>
 
-                                {club.currentBook ? (
-                                    <>
-                                        <Text style={styles.bookMeta}>{club.currentBook.title}</Text>
-                                        <Text style={styles.bookMeta}>{club.currentBook.author}</Text>
-                                    </>
-                                ) : (
-                                    <Text style={styles.bookMeta}>{t("home.noCurrentClubBook")}</Text>
-                                )}
+                            {club.currentBook ? (
+                                <>
+                                    <Text style={styles.clubCurrentBookTitle}>
+                                        {club.currentBook.title}
+                                    </Text>
+                                    <Text style={styles.clubCurrentBookAuthor}>
+                                        {club.currentBook.author}
+                                    </Text>
+                                </>
+                            ) : (
+                                <Text style={styles.clubEmptyText}>{t("home.noCurrentClubBook")}</Text>
+                            )}
 
-                                <Text style={styles.bookMeta}>
+                            <View style={styles.clubMetaGroup}>
+                                <Text style={styles.clubMetaLine}>
                                     {club.nextMeeting
-                                        ? `${t("home.nextMeeting")}: ${formatMeetingLabel(club.nextMeeting.meetingDate)}`
+                                        ? `${t("home.nextMeeting")}: ${formatMeetingLabel(
+                                            club.nextMeeting.meetingDate
+                                        )}`
                                         : t("home.noMeetingPlanned")}
                                 </Text>
 
-                                <Text style={styles.bookMeta}>
+                                <Text style={styles.clubMetaLine}>
                                     {club.memberCount}{" "}
                                     {club.memberCount === 1 ? t("home.member") : t("home.members")}
                                 </Text>
                             </View>
-
-                            {club.currentBook ? (
-                                <BookCover
-                                    title={club.currentBook.title}
-                                    cover={club.currentBook.cover}
-                                />
-                            ) : (
-                                <View style={styles.clubPlaceholderCover}>
-                                    <Feather name="users" size={24} color={theme.colors.accent} />
-                                </View>
-                            )}
                         </View>
-                    </Pressable>
+
+                        {club.currentBook ? (
+                            <BookCover
+                                title={club.currentBook.title}
+                                cover={club.currentBook.cover}
+                            />
+                        ) : (
+                            <View style={styles.clubPlaceholderCover}>
+                                <Feather name="users" size={24} color={theme.colors.accent} />
+                            </View>
+                        )}
+                    </PressableCard>
                 ) : (
-                    <View style={styles.emptyCard}>
-                        <Text style={styles.label}>{t("home.clubSection")}</Text>
-                        <Text style={styles.bookTitle}>{t("home.noClubTitle")}</Text>
-                        <Text style={styles.bookMeta}>{t("home.noClubText")}</Text>
+                    <View style={pageStyles.sectionCard}>
+                        <Text style={pageStyles.sectionLabel}>{t("home.clubSection")}</Text>
+                        <Text style={pageStyles.title}>{t("home.noClubTitle")}</Text>
+                        <Text style={pageStyles.emptyText}>{t("home.noClubText")}</Text>
 
                         <View style={styles.clubActionRow}>
                             <Pressable
-                                style={styles.secondaryButton}
+                                style={[pageStyles.secondaryButton, styles.flexButton]}
                                 onPress={() => router.push("/create-club")}
                             >
-                                <Text style={styles.secondaryButtonText}>
+                                <Text style={pageStyles.secondaryButtonText}>
                                     {t("home.createClub")}
                                 </Text>
                             </Pressable>
 
                             <Pressable
-                                style={styles.secondaryButton}
+                                style={[pageStyles.secondaryButton, styles.flexButton]}
                                 onPress={() => router.push("/join-club")}
                             >
-                                <Text style={styles.secondaryButtonText}>
+                                <Text style={pageStyles.secondaryButtonText}>
                                     {t("home.joinClub")}
                                 </Text>
                             </Pressable>
                         </View>
                     </View>
                 )}
-                <Pressable
-                    onPress={() => router.push("/books")}
-                    onPressIn={animateIn}
-                    onPressOut={animateOut}
-                >
-                    <Animated.View
-                        style={[
-                            styles.listCard,
-                            {
-                                transform: [{ scale: listCardScale }],
-                            },
-                        ]}
-                    >
-                        <View style={styles.listHeader}>
-                            <Text style={styles.label}>{t("home.booksOnList")}</Text>
 
-                            <View style={styles.arrowButton}>
-                                <Feather
-                                    name="chevron-right"
-                                    size={theme.spacing.xl}
-                                    color={theme.colors.accent}
-                                />
-                            </View>
+                <PressableCard onPress={() => router.push("/books")} style={pageStyles.sectionCard}>
+                    <View style={styles.listHeader}>
+                        <Text style={pageStyles.sectionLabel}>{t("home.booksOnList")}</Text>
+
+                        <View style={styles.arrowButton}>
+                            <Feather
+                                name="chevron-right"
+                                size={20}
+                                color={theme.colors.accent}
+                            />
                         </View>
+                    </View>
 
+                    {listBooks.length > 0 ? (
                         <View style={styles.listRow}>
                             {listBooks.map((book) => (
                                 <BookCover
@@ -265,8 +319,10 @@ export default function HomeScreen() {
                                 />
                             ))}
                         </View>
-                    </Animated.View>
-                </Pressable>
+                    ) : (
+                        <Text style={pageStyles.emptyText}>{t("home.noBooksOnListYet")}</Text>
+                    )}
+                </PressableCard>
             </ScrollView>
         </SafeAreaView>
     );
@@ -274,169 +330,28 @@ export default function HomeScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
-        safeArea: {
-            flex: 1,
-        },
-        screen: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-            display: "flex",
-        },
-        content: {
-            padding: theme.spacing.lg,
-        },
-        topBar: {
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            backgroundColor: theme.colors.surface,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            marginHorizontal: -theme.spacing.lg,
-            marginTop: -theme.spacing.lg,
-            marginBottom: theme.spacing.lg,
-            paddingHorizontal: theme.spacing.lg,
-            paddingVertical: 14,
-        },
-        brandRow: {
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 12,
-        },
-        logoBox: {
-            width: 42,
-            height: 42,
-            borderRadius: 10,
-            backgroundColor: theme.colors.accent,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-        brand: {
-            color: theme.colors.text,
-            fontSize: 18,
-            fontWeight: "500",
-        },
-        profileButton: {
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            borderWidth: 2,
-            borderColor: theme.colors.text,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-        card: {
-            backgroundColor: theme.colors.card,
-            borderRadius: theme.radius.lg,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.lg,
-        },
-        title: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.xl,
-            fontWeight: theme.typography.fontWeight.bold,
-            marginBottom: 4,
-        },
-        subtitle: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginBottom: theme.spacing.lg,
-        },
-        bookRow: {
-            flexDirection: "row",
-            gap: theme.spacing.md,
-            alignItems: "center",
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-            marginBottom: theme.spacing.md,
-        },
         bookInfo: {
             flex: 1,
-        },
-        label: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.md,
-            marginBottom: 4,
-        },
-        bookTitle: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: 4,
         },
         bookMeta: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
             marginBottom: 8,
         },
-        smallButton: {
-            marginTop: theme.spacing.sm,
-            alignSelf: "flex-start",
-            backgroundColor: theme.colors.accentSoft,
-            borderRadius: theme.radius.pill,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
-        },
-        smallButtonText: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.xs,
-            fontWeight: theme.typography.fontWeight.semibold,
-        },
-        avatarText: {
-            color: theme.colors.accent,
-            fontSize: 11,
-            fontWeight: "700",
-        },
-        avatarMore: {
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: theme.colors.accent,
-            alignItems: "center",
-            justifyContent: "center",
-            marginLeft: 6,
-        },
-        avatarMoreText: {
-            color: "#FFFFFF",
-            fontSize: 11,
-            fontWeight: "700",
-        },
-        avatarRow: {
-            flexDirection: "row",
-            alignItems: "center",
+        progressWrap: {
+            width: "100%",
             marginTop: theme.spacing.xs,
-        },
-        avatar: {
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            backgroundColor: theme.colors.accentSoft,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            alignItems: "center",
-            justifyContent: "center",
-            marginRight: -6,
-        },
-        listCard: {
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-        },
-        listRow: {
-            flexDirection: "row",
-            gap: theme.spacing.sm,
-            marginTop: theme.spacing.sm,
         },
         listHeader: {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
+        },
+        listRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
         },
         arrowButton: {
             width: 28,
@@ -445,37 +360,13 @@ function createStyles(theme: AppTheme) {
             alignItems: "center",
             justifyContent: "center",
         },
-        emptyClubCard: {
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-            gap: theme.spacing.sm,
-            marginBottom: theme.spacing.md,
-        },
-
         clubActionRow: {
             flexDirection: "row",
             gap: theme.spacing.sm,
-            marginTop: theme.spacing.sm,
+            marginTop: theme.spacing.md,
         },
-
-        secondaryButton: {
-            backgroundColor: theme.colors.card,
-            borderRadius: theme.radius.pill,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            paddingVertical: 10,
-            paddingHorizontal: 14,
-            alignItems: "center",
-            justifyContent: "center",
-        },
-
-        secondaryButtonText: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.medium,
+        flexButton: {
+            flex: 1,
         },
         clubPlaceholderCover: {
             width: 90,
@@ -483,20 +374,38 @@ function createStyles(theme: AppTheme) {
             borderRadius: theme.radius.md,
             borderWidth: 1,
             borderColor: theme.colors.border,
-            backgroundColor: theme.colors.card,
+            backgroundColor: theme.colors.surface,
             alignItems: "center",
             justifyContent: "center",
         },
-        emptyCard: {
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-            marginBottom: theme.spacing.md,
+        clubCurrentBookTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+            marginTop: 2,
         },
 
+        clubCurrentBookAuthor: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginTop: 2,
+        },
 
+        clubEmptyText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginTop: 2,
+        },
+
+        clubMetaGroup: {
+            marginTop: theme.spacing.sm,
+            gap: 4,
+        },
+
+        clubMetaLine: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            lineHeight: theme.typography.lineHeight.xs ?? 16,
+        },
     });
-
 }

@@ -29,3 +29,7 @@ export function normalizeOpenLibraryWorkId(value?: string | null) {
 export function isValidOpenLibraryWorkId(value?: string | null) {
     return normalizeOpenLibraryWorkId(value) !== null;
 }
+
+export function getOpenLibraryWorkId(value: string) {
+    return value.replace("/works/", "").trim();
+}

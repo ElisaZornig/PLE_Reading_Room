@@ -10,6 +10,9 @@ export const colors = {
         accentSoft: "#F6D3CB",
         success: "#5FA56B",
         successSoft: "#DDEEDF",
+        danger: "#B42318",
+        dangerSoft: "#FFF4F4",
+        dangerBorder: "#F3C7C7",
         tabInactive: "#9E8B86",
     },
     dark: {
@@ -23,6 +26,9 @@ export const colors = {
         accentSoft: "#5A3A3A",
         success: "#4FA35F",
         successSoft: "#294530",
+        danger: "#FFB3C1",
+        dangerSoft: "#4A1D25",
+        dangerBorder: "#7A2E3A",
         tabInactive: "#B89E98",
     },
 };

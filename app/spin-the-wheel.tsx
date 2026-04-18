@@ -22,6 +22,7 @@ import {
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import {setCurrentClubBookAndAddToTbr, updateCurrentBookInSupabase} from "@/src/services/supabaseClub";
+import {triggerRefresh} from "@/src/utils/refreshEvents";
 
 const WHEEL_SIZE = 280;
 const RADIUS = 130;
@@ -161,7 +162,7 @@ export default function SpinTheWheelScreen() {
                 clubId,
                 bookId: winner.bookId,
             });
-
+            triggerRefresh("club","books", "home");
             router.replace({
                 pathname: "/club",
                 params: { clubId },

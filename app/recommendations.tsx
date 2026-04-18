@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     FlatList,
-    Image, Modal, Platform,
+    Image,
+    Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -12,146 +14,285 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
+import LottieView from "lottie-react-native";
 
 import { AppHeader } from "@/src/components/AppHeader";
+import { t } from "@/src/i18n";
 import {
     addRecommendationToClubShortlist,
     generateClubRecommendations,
     type ClubRecommendation,
 } from "@/src/services/clubRecommendations";
+import {
+    type ClubShortlistItem,
+    fetchClubShortlist,
+    removeBookFromClubShortlist,
+} from "@/src/services/supabaseClubShortlist";
+import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
-import {
-    ClubShortlistItem,
-    fetchClubShortlist,
-    fetchClubShortlistCount,
-    removeBookFromClubShortlist
-} from "@/src/services/supabaseClubShortlist";
+import { subscribeToRefresh } from "@/src/utils/refreshEvents";
+
+type RecommendationSessionCache = {
+    hasLoaded: boolean;
+    recommendations: ClubRecommendation[];
+    seenWorkIds: string[];
+    shortlistItems: ClubShortlistItem[];
+    shortlistCount: number;
+};
+
+const recommendationCacheByClub: Record<string, RecommendationSessionCache> = {};
+
+function getRecommendationCache(clubId: string): RecommendationSessionCache {
+    if (!recommendationCacheByClub[clubId]) {
+        recommendationCacheByClub[clubId] = {
+            hasLoaded: false,
+            recommendations: [],
+            seenWorkIds: [],
+            shortlistItems: [],
+            shortlistCount: 0,
+        };
+    }
+
+    return recommendationCacheByClub[clubId];
+}
 
 export default function RecommendationsScreen() {
     const theme = useAppTheme();
+    const pageStyles = createPageStyles(theme);
     const styles = createStyles(theme);
     const params = useLocalSearchParams();
-    const [shortlistCount, setShortlistCount] = useState(0);
-    const [shortlistItems, setShortlistItems] = useState<ClubShortlistItem[]>([]);
-    const [recommendations, setRecommendations] = useState<ClubRecommendation[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [savingWorkId, setSavingWorkId] = useState<string | null>(null);
-    const [addedWorkIds, setAddedWorkIds] = useState<string[]>([]);
-    const [selectedRecommendation, setSelectedRecommendation] =
-        useState<ClubRecommendation | null>(null);
-    const [seenWorkIds, setSeenWorkIds] = useState<string[]>([]);
-
-    async function loadShortlistCount() {
-        try {
-            const count = await fetchClubShortlistCount(clubId ?? "");
-            setShortlistCount(count);
-        } catch (error) {
-            console.error("Error loading shortlist count:", error);
-        }
-    }
-    async function loadShortlistState() {
-        try {
-            const items = await fetchClubShortlist(clubId ?? "");
-            setShortlistItems(items);
-            setShortlistCount(items.length);
-        } catch (error) {
-            console.error("Error loading shortlist state:", error);
-        }
-    }
-    const shortlistByOpenLibraryWorkId = new Map(
-        shortlistItems
-            .filter((item) => item.openLibraryWorkId)
-            .map((item) => [item.openLibraryWorkId, item])
-    );
-
 
     const clubId = useMemo(() => {
         const value = params.clubId;
         return Array.isArray(value) ? value[0] : value;
     }, [params.clubId]);
 
+    const resolvedClubId = clubId ?? "";
 
-    async function loadRecommendations(options?: { refresh?: boolean }) {
+    const [shortlistCount, setShortlistCount] = useState(0);
+    const [shortlistItems, setShortlistItems] = useState<ClubShortlistItem[]>([]);
+    const [recommendations, setRecommendations] = useState<ClubRecommendation[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [savingWorkId, setSavingWorkId] = useState<string | null>(null);
+    const [selectedRecommendation, setSelectedRecommendation] =
+        useState<ClubRecommendation | null>(null);
+    const [seenWorkIds, setSeenWorkIds] = useState<string[]>([]);
+
+    const shortlistByOpenLibraryWorkId = new Map(
+        shortlistItems
+            .filter((item) => item.openLibraryWorkId)
+            .map((item) => [item.openLibraryWorkId, item])
+    );
+
+    const updateSessionCache = useCallback(
+        (partial: Partial<RecommendationSessionCache>) => {
+            if (!resolvedClubId) return;
+
+            recommendationCacheByClub[resolvedClubId] = {
+                ...getRecommendationCache(resolvedClubId),
+                ...partial,
+            };
+        },
+        [resolvedClubId]
+    );
+
+    const loadShortlistState = useCallback(async () => {
+        try {
+            const items = await fetchClubShortlist(resolvedClubId);
+            setShortlistItems(items);
+            setShortlistCount(items.length);
+
+            updateSessionCache({
+                shortlistItems: items,
+                shortlistCount: items.length,
+            });
+        } catch (error) {
+            console.error("Error loading shortlist state:", error);
+        }
+    }, [resolvedClubId, updateSessionCache]);
+
+    const loadInitialRecommendations = useCallback(async () => {
+        if (!resolvedClubId) {
+            setIsLoading(false);
+            return;
+        }
+
+        const cache = getRecommendationCache(resolvedClubId);
+
+        if (cache.hasLoaded) {
+            setRecommendations(cache.recommendations);
+            setSeenWorkIds(cache.seenWorkIds);
+            setShortlistItems(cache.shortlistItems);
+            setShortlistCount(cache.shortlistCount);
+            setIsLoading(false);
+
+            void loadShortlistState();
+            return;
+        }
+
         try {
             setIsLoading(true);
 
-            const excludeWorkIds = options?.refresh ? seenWorkIds : [];
-
             const data = await generateClubRecommendations({
-                clubId: clubId ?? "",
+                clubId: resolvedClubId,
                 limit: 5,
-                excludeWorkIds,
+                excludeWorkIds: [],
             });
+
+            const nextSeenWorkIds = [...new Set(data.map((item) => item.openLibraryWorkId))];
 
             setRecommendations(data);
-            await loadShortlistCount();
-            await loadShortlistState();
+            setSeenWorkIds(nextSeenWorkIds);
 
-            setSeenWorkIds((current) => {
-                const merged = new Set([
-                    ...current,
-                    ...data.map((item) => item.openLibraryWorkId),
-                ]);
-
-                return [...merged];
+            updateSessionCache({
+                hasLoaded: true,
+                recommendations: data,
+                seenWorkIds: nextSeenWorkIds,
             });
+
+            await loadShortlistState();
         } catch (error) {
             console.error("Error loading recommendations:", error);
-            Alert.alert("Error", "Something went wrong while loading recommendations.");
+            Alert.alert(
+                t("recommendations.loadErrorTitle"),
+                t("recommendations.loadErrorText")
+            );
         } finally {
             setIsLoading(false);
         }
-    }
-    useFocusEffect(
-        useCallback(() => {
-            loadRecommendations();
-        }, [clubId])
-    );
+    }, [resolvedClubId, loadShortlistState, updateSessionCache]);
+
+    const refreshRecommendations = useCallback(async () => {
+        if (!resolvedClubId) return;
+
+        try {
+            setIsRefreshing(true);
+
+            const data = await generateClubRecommendations({
+                clubId: resolvedClubId,
+                limit: 5,
+                excludeWorkIds: [],
+            });
+
+            const nextSeenWorkIds = [...new Set(data.map((item) => item.openLibraryWorkId))];
+
+            setRecommendations(data);
+            setSeenWorkIds(nextSeenWorkIds);
+
+            updateSessionCache({
+                hasLoaded: true,
+                recommendations: data,
+                seenWorkIds: nextSeenWorkIds,
+            });
+
+            await loadShortlistState();
+        } catch (error) {
+            console.error("Error refreshing recommendations:", error);
+            Alert.alert(
+                t("recommendations.refreshErrorTitle"),
+                t("recommendations.refreshErrorText")
+            );
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [resolvedClubId, loadShortlistState, updateSessionCache]);
+
+    const loadMoreRecommendations = useCallback(async () => {
+        if (!resolvedClubId) return;
+
+        try {
+            setIsLoadingMore(true);
+
+            const data = await generateClubRecommendations({
+                clubId: resolvedClubId,
+                limit: 5,
+                excludeWorkIds: seenWorkIds,
+            });
+
+            if (data.length === 0) {
+                Alert.alert(
+                    t("recommendations.noMoreTitle"),
+                    t("recommendations.noMoreText")
+                );
+                return;
+            }
+
+            const nextSeenWorkIds = [
+                ...new Set([
+                    ...seenWorkIds,
+                    ...data.map((item) => item.openLibraryWorkId),
+                ]),
+            ];
+
+            setRecommendations(data);
+            setSeenWorkIds(nextSeenWorkIds);
+
+            updateSessionCache({
+                hasLoaded: true,
+                recommendations: data,
+                seenWorkIds: nextSeenWorkIds,
+            });
+
+            await loadShortlistState();
+        } catch (error) {
+            console.error("Error loading more recommendations:", error);
+            Alert.alert(
+                t("recommendations.refreshErrorTitle"),
+                t("recommendations.refreshErrorText")
+            );
+        } finally {
+            setIsLoadingMore(false);
+        }
+    }, [resolvedClubId, seenWorkIds, loadShortlistState, updateSessionCache]);
+
+    useEffect(() => {
+        void loadInitialRecommendations();
+
+        const unsubscribe = subscribeToRefresh("recommendations", () => {
+            void refreshRecommendations();
+        });
+
+        return unsubscribe;
+    }, [loadInitialRecommendations, refreshRecommendations]);
 
     async function handleAddToShortlist(item: ClubRecommendation) {
         try {
             setSavingWorkId(item.openLibraryWorkId);
 
             await addRecommendationToClubShortlist({
-                clubId: clubId ?? "",
+                clubId: resolvedClubId,
                 recommendation: item,
             });
-
-            setAddedWorkIds((current) =>
-                current.includes(item.openLibraryWorkId)
-                    ? current
-                    : [...current, item.openLibraryWorkId]
-            );
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Something went wrong while adding this book.";
-            Alert.alert("Add to shortlist error", message);
+                    : t("recommendations.addErrorText");
+            Alert.alert(t("recommendations.addErrorTitle"), message);
         } finally {
             setSavingWorkId(null);
-            await loadShortlistCount();
             await loadShortlistState();
         }
     }
+
     function handleRemoveFromShortlist(optionId: string) {
         if (Platform.OS === "web") {
             const confirmed = globalThis.confirm?.(
-                "Do you want to remove this book from the shortlist?"
+                t("recommendations.removeConfirmText")
             );
 
             if (confirmed) {
                 void (async () => {
                     try {
                         setSavingWorkId(optionId);
-
                         await removeBookFromClubShortlist(optionId);
                         await loadShortlistState();
                     } catch (error) {
                         console.error("Error removing from shortlist:", error);
-                        globalThis.alert?.("Something went wrong while removing this book.");
+                        globalThis.alert?.(t("recommendations.removeErrorText"));
                     } finally {
                         setSavingWorkId(null);
                     }
@@ -162,27 +303,26 @@ export default function RecommendationsScreen() {
         }
 
         Alert.alert(
-            "Remove from shortlist",
-            "Do you want to remove this book from the shortlist?",
+            t("recommendations.removeConfirmTitle"),
+            t("recommendations.removeConfirmText"),
             [
                 {
-                    text: "Cancel",
+                    text: t("common.cancel"),
                     style: "cancel",
                 },
                 {
-                    text: "Remove",
+                    text: t("common.delete"),
                     style: "destructive",
                     onPress: async () => {
                         try {
                             setSavingWorkId(optionId);
-
                             await removeBookFromClubShortlist(optionId);
                             await loadShortlistState();
                         } catch (error) {
                             console.error("Error removing from shortlist:", error);
                             Alert.alert(
-                                "Remove from shortlist error",
-                                "Something went wrong while removing this book."
+                                t("recommendations.removeErrorTitle"),
+                                t("recommendations.removeErrorText")
                             );
                         } finally {
                             setSavingWorkId(null);
@@ -194,43 +334,63 @@ export default function RecommendationsScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
             <AppHeader />
 
-            <View style={styles.screen}>
+            <View style={pageStyles.screen}>
                 <View style={styles.header}>
                     <View style={styles.headerTopRow}>
                         <View style={styles.titleRow}>
                             <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                <Feather name="chevron-left" size={24} color={theme.colors.accent} />
+                                <Feather name="chevron-left" size={22} color={theme.colors.accent} />
                             </Pressable>
 
-                            <Text style={styles.title}>Choose next book</Text>
+                            <View style={pageStyles.pageHeader}>
+                                <Text style={pageStyles.pageTitle}>
+                                    {t("recommendations.title")}
+                                </Text>
+                            </View>
                         </View>
 
                         <Pressable
-                            style={styles.refreshButton}
-                            onPress={() => loadRecommendations({ refresh: true })}
+                            style={[
+                                styles.refreshButton,
+                                isRefreshing && styles.refreshButtonDisabled,
+                            ]}
+                            onPress={() => void refreshRecommendations()}
+                            disabled={isRefreshing}
                         >
-                            <Feather name="refresh-cw" size={16} color={theme.colors.accent} />
-                            <Text style={styles.refreshButtonText}>Refresh</Text>
+                            <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
                         </Pressable>
                     </View>
 
-                    <Text style={styles.subtitle}>
-                        Start with your club’s Top 5, add favourites to the shortlist, and then make the final choice.
+                    <Text style={pageStyles.pageSubtitle}>
+                        {t("recommendations.subtitle")}
                     </Text>
+
+                    {isRefreshing ? (
+                        <Text style={styles.refreshingText}>
+                            {t("recommendations.refreshing")}
+                        </Text>
+                    ) : null}
                 </View>
 
                 {isLoading ? (
                     <View style={styles.stateWrapper}>
-                        <Text style={styles.stateText}>Loading recommendations...</Text>
+                        <LottieView
+                            source={require("@/assets/animations/loading-book.json")}
+                            autoPlay
+                            loop
+                            style={{ width: 200, height: 200 }}
+                        />
                     </View>
                 ) : recommendations.length === 0 ? (
                     <View style={styles.emptyCard}>
-                        <Text style={styles.emptyTitle}>No recommendations yet</Text>
+                        <Text style={styles.emptyTitle}>
+                            {t("recommendations.emptyTitle")}
+                        </Text>
                         <Text style={styles.emptyText}>
-                            Add more books and genres to your members’ reading history first.
+                            {t("recommendations.emptyText")}
                         </Text>
                     </View>
                 ) : (
@@ -246,6 +406,7 @@ export default function RecommendationsScreen() {
                                 : undefined;
 
                             const isAdded = !!shortlistItem;
+
                             return (
                                 <Pressable
                                     style={styles.card}
@@ -256,16 +417,25 @@ export default function RecommendationsScreen() {
                                             <Text style={styles.rankText}>#{index + 1}</Text>
                                         </View>
 
-                                        <Feather name="info" size={16} color={theme.colors.textMuted} />
+                                        <Feather
+                                            name="info"
+                                            size={16}
+                                            color={theme.colors.textMuted}
+                                        />
                                     </View>
 
                                     <View style={styles.cardContent}>
                                         <View style={styles.bookRow}>
                                             {item.cover ? (
-                                                <Image source={{ uri: item.cover }} style={styles.cover} />
+                                                <Image
+                                                    source={{ uri: item.cover }}
+                                                    style={styles.cover}
+                                                />
                                             ) : (
                                                 <View style={styles.coverFallback}>
-                                                    <Text style={styles.coverFallbackText}>Book</Text>
+                                                    <Text style={styles.coverFallbackText}>
+                                                        {t("recommendations.bookFallback")}
+                                                    </Text>
                                                 </View>
                                             )}
 
@@ -274,19 +444,24 @@ export default function RecommendationsScreen() {
                                                 <Text style={styles.bookAuthor}>{item.author}</Text>
 
                                                 {item.firstPublishYear ? (
-                                                    <Text style={styles.bookMeta}>First published: {item.firstPublishYear}</Text>
+                                                    <Text style={styles.bookMeta}>
+                                                        {t("recommendations.firstPublished", {
+                                                            year: item.firstPublishYear,
+                                                        })}
+                                                    </Text>
                                                 ) : null}
 
                                                 <View style={styles.genreRow}>
                                                     {item.matchedGenres.map((genre) => (
                                                         <View key={genre} style={styles.genreChip}>
-                                                            <Text style={styles.genreChipText}>{genre}</Text>
+                                                            <Text style={styles.genreChipText}>
+                                                                {genre}
+                                                            </Text>
                                                         </View>
                                                     ))}
                                                 </View>
                                             </View>
                                         </View>
-
 
                                         <Pressable
                                             style={[
@@ -302,34 +477,52 @@ export default function RecommendationsScreen() {
                                         >
                                             <Text style={styles.primaryButtonText}>
                                                 {isAdded
-                                                    ? "Remove from shortlist"
+                                                    ? t("recommendations.removeFromFinalPicks")
                                                     : isSaving
-                                                        ? "Adding..."
-                                                        : "Add to shortlist"}
+                                                        ? t("recommendations.adding")
+                                                        : t("recommendations.saveToFinalPicks")}
                                             </Text>
                                         </Pressable>
                                     </View>
                                 </Pressable>
                             );
                         }}
+                        ListFooterComponent={
+                            <Pressable
+                                style={[
+                                    styles.listFooterButton,
+                                    isLoadingMore && styles.primaryButtonDisabled,
+                                ]}
+                                onPress={() => void loadMoreRecommendations()}
+                                disabled={isLoadingMore}
+                            >
+                                <Text style={styles.listFooterButtonText}>
+                                    {isLoadingMore
+                                        ? t("recommendations.loadingMore")
+                                        : t("recommendations.showFiveOthers")}
+                                </Text>
+                            </Pressable>
+                        }
                     />
                 )}
+
                 {shortlistCount > 0 ? (
                     <Pressable
-                        style={styles.floatingShortlistButton}
+                        style={styles.finalPicksButton}
                         onPress={() =>
                             router.push({
                                 pathname: "/choose-next-book",
-                                params: { clubId: clubId ?? "" },
+                                params: { clubId: resolvedClubId },
                             })
                         }
                     >
-                        <Text style={styles.floatingShortlistButtonText}>
-                            View shortlist ({shortlistCount})
+                        <Text style={styles.finalPicksButtonText}>
+                            {t("recommendations.viewFinalPicks", { count: shortlistCount })}
                         </Text>
                     </Pressable>
                 ) : null}
             </View>
+
             <Modal
                 visible={!!selectedRecommendation}
                 transparent
@@ -348,7 +541,9 @@ export default function RecommendationsScreen() {
                             {selectedRecommendation ? (
                                 <>
                                     <View style={styles.modalHeader}>
-                                        <Text style={styles.modalTitle}>Book details</Text>
+                                        <Text style={styles.modalTitle}>
+                                            {t("recommendations.bookDetails")}
+                                        </Text>
 
                                         <Pressable
                                             onPress={() => setSelectedRecommendation(null)}
@@ -370,7 +565,9 @@ export default function RecommendationsScreen() {
                                             />
                                         ) : (
                                             <View style={styles.modalCoverFallback}>
-                                                <Text style={styles.coverFallbackText}>Book</Text>
+                                                <Text style={styles.coverFallbackText}>
+                                                    {t("recommendations.bookFallback")}
+                                                </Text>
                                             </View>
                                         )}
 
@@ -384,7 +581,9 @@ export default function RecommendationsScreen() {
 
                                             {selectedRecommendation.firstPublishYear ? (
                                                 <Text style={styles.bookMeta}>
-                                                    First published: {selectedRecommendation.firstPublishYear}
+                                                    {t("recommendations.firstPublished", {
+                                                        year: selectedRecommendation.firstPublishYear,
+                                                    })}
                                                 </Text>
                                             ) : null}
                                         </View>
@@ -392,7 +591,9 @@ export default function RecommendationsScreen() {
 
                                     {selectedRecommendation.description ? (
                                         <View style={styles.modalSection}>
-                                            <Text style={styles.modalSectionLabel}>About this book</Text>
+                                            <Text style={styles.modalSectionLabel}>
+                                                {t("recommendations.aboutThisBook")}
+                                            </Text>
                                             <Text style={styles.modalSectionText}>
                                                 {selectedRecommendation.description}
                                             </Text>
@@ -400,7 +601,9 @@ export default function RecommendationsScreen() {
                                     ) : null}
 
                                     <View style={styles.modalSection}>
-                                        <Text style={styles.modalSectionLabel}>Why this fits</Text>
+                                        <Text style={styles.modalSectionLabel}>
+                                            {t("recommendations.whyThisFits")}
+                                        </Text>
                                         <Text style={styles.modalSectionText}>
                                             {selectedRecommendation.reason}
                                         </Text>
@@ -425,80 +628,51 @@ export default function RecommendationsScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
-        safeArea: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-        },
-        screen: {
-            flex: 1,
-            backgroundColor: theme.colors.background,
-            padding: theme.spacing.lg,
-        },
         header: {
             marginBottom: theme.spacing.lg,
             gap: theme.spacing.sm,
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
         },
-
         headerTopRow: {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
             gap: theme.spacing.md,
         },
-
         titleRow: {
             flexDirection: "row",
             alignItems: "center",
             gap: theme.spacing.xs,
             flex: 1,
         },
-
         backButton: {
             width: 32,
             height: 32,
             alignItems: "center",
             justifyContent: "center",
         },
-
-        title: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.xxl,
-            fontWeight: theme.typography.fontWeight.bold,
-            flexShrink: 1,
-        },
-
         refreshButton: {
-            flexDirection: "row",
+            width: 36,
+            height: 36,
+            borderRadius: 18,
             alignItems: "center",
-            gap: 6,
-            backgroundColor: theme.colors.accentSoft,
-            borderRadius: theme.radius.pill,
-            paddingHorizontal: 12,
-            paddingVertical: 8,
+            justifyContent: "center",
+            backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
         },
-
-        refreshButtonText: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.sm,
-            fontWeight: theme.typography.fontWeight.semibold,
+        refreshButtonDisabled: {
+            opacity: 0.6,
         },
-
-        subtitle: {
+        refreshingText: {
             color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: 20,
-            maxWidth: "92%",
+            fontSize: theme.typography.fontSize.xs,
         },
         stateWrapper: {
             flex: 1,
             justifyContent: "center",
             alignItems: "center",
-        },
-        stateText: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
         },
         emptyCard: {
             backgroundColor: theme.colors.card,
@@ -507,6 +681,7 @@ function createStyles(theme: AppTheme) {
             borderColor: theme.colors.border,
             padding: theme.spacing.md,
             gap: theme.spacing.sm,
+            marginHorizontal: theme.spacing.lg,
         },
         emptyTitle: {
             color: theme.colors.text,
@@ -520,6 +695,7 @@ function createStyles(theme: AppTheme) {
         },
         listContent: {
             gap: theme.spacing.md,
+            paddingHorizontal: theme.spacing.lg,
             paddingBottom: theme.spacing.xl,
         },
         card: {
@@ -599,24 +775,6 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.xs,
         },
-        reasonBox: {
-            backgroundColor: theme.colors.surface,
-            borderRadius: theme.radius.md,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.sm,
-            gap: 4,
-        },
-        reasonLabel: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.xs,
-            fontWeight: theme.typography.fontWeight.semibold,
-        },
-        reasonText: {
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: 20,
-        },
         primaryButton: {
             backgroundColor: theme.colors.accent,
             borderRadius: theme.radius.pill,
@@ -636,24 +794,12 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.xs,
         },
-        bookDescription: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            lineHeight: 20,
-        },
-        tapHint: {
-            color: theme.colors.accent,
-            fontSize: theme.typography.fontSize.xs,
-            fontWeight: theme.typography.fontWeight.medium,
-        },
-
         modalOverlay: {
             flex: 1,
             backgroundColor: "rgba(0,0,0,0.35)",
             justifyContent: "center",
             padding: theme.spacing.lg,
         },
-
         modalCard: {
             backgroundColor: theme.colors.card,
             borderRadius: theme.radius.xl,
@@ -663,39 +809,33 @@ function createStyles(theme: AppTheme) {
             gap: theme.spacing.md,
             maxHeight: "80%",
         },
-
         modalHeader: {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
         },
-
         modalTitle: {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.lg,
             fontWeight: theme.typography.fontWeight.semibold,
         },
-
         modalCloseButton: {
             width: 32,
             height: 32,
             alignItems: "center",
             justifyContent: "center",
         },
-
         modalBookRow: {
             flexDirection: "row",
             gap: theme.spacing.md,
             alignItems: "flex-start",
         },
-
         modalCover: {
             width: 84,
             height: 124,
             borderRadius: theme.radius.md,
             backgroundColor: theme.colors.surface,
         },
-
         modalCoverFallback: {
             width: 84,
             height: 124,
@@ -704,23 +844,19 @@ function createStyles(theme: AppTheme) {
             alignItems: "center",
             justifyContent: "center",
         },
-
         modalBookInfo: {
             flex: 1,
             gap: 6,
         },
-
         modalBookTitle: {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.lg,
             fontWeight: theme.typography.fontWeight.semibold,
         },
-
         modalBookAuthor: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
         },
-
         modalSection: {
             backgroundColor: theme.colors.surface,
             borderRadius: theme.radius.md,
@@ -729,13 +865,11 @@ function createStyles(theme: AppTheme) {
             padding: theme.spacing.sm,
             gap: 4,
         },
-
         modalSectionLabel: {
             color: theme.colors.accent,
             fontSize: theme.typography.fontSize.xs,
             fontWeight: theme.typography.fontWeight.semibold,
         },
-
         modalSectionText: {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
@@ -750,17 +884,34 @@ function createStyles(theme: AppTheme) {
             justifyContent: "space-between",
             alignItems: "center",
         },
-        floatingShortlistButton: {
+        finalPicksButton: {
             backgroundColor: theme.colors.accent,
             borderRadius: theme.radius.pill,
             paddingVertical: 14,
             alignItems: "center",
             justifyContent: "center",
             marginTop: theme.spacing.md,
+            marginHorizontal: theme.spacing.lg,
+            marginBottom: theme.spacing.lg,
         },
-
-        floatingShortlistButtonText: {
+        finalPicksButtonText: {
             color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        listFooterButton: {
+            width: "100%",
+            backgroundColor: theme.colors.accentSoft,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingVertical: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: theme.spacing.md,
+        },
+        listFooterButtonText: {
+            color: theme.colors.accent,
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
         },

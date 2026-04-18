@@ -189,17 +189,26 @@ export async function updateUserBookInSupabase(book: Book) {
         throw error;
     }
 }
-export async function fetchStoredBookIdsFromSupabase(): Promise<string[]> {
+type StoredBookMapRow = {
+    book_id: string | null;
+    books:
+        | { open_library_work_id: string | null }
+        | { open_library_work_id: string | null }[]
+        | null;
+};
+
+export async function fetchStoredBookMapFromSupabase(): Promise<Record<string, string>> {
     const userId = await getCurrentSupabaseUserId();
 
     const { data, error } = await supabase
         .from("user_books")
         .select(
             `
-      books (
-        open_library_work_id
-      )
-    `
+            book_id,
+            books (
+                open_library_work_id
+            )
+            `
         )
         .eq("user_id", userId);
 
@@ -207,9 +216,19 @@ export async function fetchStoredBookIdsFromSupabase(): Promise<string[]> {
         throw error;
     }
 
-    return (data ?? [])
-        .map((row: any) => row.books?.open_library_work_id)
-        .filter(Boolean);
+    const rows = (data ?? []) as unknown as StoredBookMapRow[];
+
+    return rows.reduce<Record<string, string>>((acc, row) => {
+        const relatedBook = Array.isArray(row.books) ? row.books[0] : row.books;
+        const workId = relatedBook?.open_library_work_id;
+        const bookId = row.book_id;
+
+        if (workId && bookId) {
+            acc[workId] = bookId;
+        }
+
+        return acc;
+    }, {});
 }
 export async function fetchCurrentUserDisplayName() {
     const {

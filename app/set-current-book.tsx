@@ -20,6 +20,7 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
 import {AppHeader} from "@/src/components/AppHeader";
+import {triggerRefresh} from "@/src/utils/refreshEvents";
 
 export default function SetCurrentBookScreen() {
     const theme = useAppTheme();
@@ -82,7 +83,7 @@ export default function SetCurrentBookScreen() {
                 clubId: clubId ?? "",
                 bookId: savedBook.id,
             });
-
+            triggerRefresh("club","books", "home");
             router.replace({
                 pathname: "/club",
                 params: { clubId: clubId ?? "" },
