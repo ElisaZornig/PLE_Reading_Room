@@ -214,8 +214,11 @@ export default function BooksScreen() {
                                         {book.status === "reading" && typeof book.progress === "number" ? (
                                             <View style={styles.progressSection}>
                                                 <Text style={styles.bookMeta}>
-                                                    {book.progress}% • {t("books.page")} {book.currentPage ?? 0}{" "}
-                                                    {t("books.pageOf")} {book.totalPages ?? 0}
+                                                    {book.progressMode === "pages" &&
+                                                    typeof book.currentPage === "number" &&
+                                                    typeof book.totalPages === "number"
+                                                        ? `${book.progress}% • ${t("books.page")} ${book.currentPage} ${t("books.pageOf")} ${book.totalPages}`
+                                                        : `${book.progress}%`}
                                                 </Text>
 
                                                 <View style={styles.progressWrap}>
