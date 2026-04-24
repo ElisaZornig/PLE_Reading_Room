@@ -138,7 +138,6 @@ export default function PlanMeetingScreen() {
 
         const updated = new Date(selectedDateTime);
         updated.setFullYear(year, month - 1, day);
-
         setSelectedDateTime(updated);
     }
 
@@ -151,7 +150,6 @@ export default function PlanMeetingScreen() {
 
         const updated = new Date(selectedDateTime);
         updated.setHours(hours, minutes, 0, 0);
-
         setSelectedDateTime(updated);
     }
 
@@ -201,14 +199,21 @@ export default function PlanMeetingScreen() {
                         <Text style={styles.label}>{t("planMeeting.date")}</Text>
 
                         {Platform.OS === "web" ? (
-                            <TextInput
-                                value={date}
-                                onChangeText={handleWebDateChange}
-                                style={styles.input}
-                                placeholder="YYYY-MM-DD"
-                                placeholderTextColor={theme.colors.textMuted}
-                                {...({ type: "date" } as any)}
-                            />
+                            <View style={styles.webPickerInput}>
+                                <TextInput
+                                    value={date}
+                                    style={styles.webPickerTextInput}
+                                    placeholder="YYYY-MM-DD"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    {...({
+                                        type: "date",
+                                        onChange: (event: any) =>
+                                            handleWebDateChange(event.target.value),
+                                    } as any)}
+                                />
+
+                                <Feather name="calendar" size={18} color={theme.colors.accent} />
+                            </View>
                         ) : (
                             <Pressable style={styles.input} onPress={openDatePicker}>
                                 <Text style={styles.inputText}>{date}</Text>
@@ -220,14 +225,21 @@ export default function PlanMeetingScreen() {
                         <Text style={styles.label}>{t("planMeeting.time")}</Text>
 
                         {Platform.OS === "web" ? (
-                            <TextInput
-                                value={time}
-                                onChangeText={handleWebTimeChange}
-                                style={styles.input}
-                                placeholder="HH:MM"
-                                placeholderTextColor={theme.colors.textMuted}
-                                {...({ type: "time" } as any)}
-                            />
+                            <View style={styles.webPickerInput}>
+                                <TextInput
+                                    value={time}
+                                    style={styles.webPickerTextInput}
+                                    placeholder="HH:MM"
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    {...({
+                                        type: "time",
+                                        onChange: (event: any) =>
+                                            handleWebTimeChange(event.target.value),
+                                    } as any)}
+                                />
+
+                                <Feather name="clock" size={18} color={theme.colors.accent} />
+                            </View>
                         ) : (
                             <Pressable style={styles.input} onPress={openTimePicker}>
                                 <Text style={styles.inputText}>{time}</Text>
@@ -334,6 +346,24 @@ function createStyles(theme: AppTheme) {
         screenContent: {
             flex: 1,
             padding: theme.spacing.lg,
+        },
+        webPickerInput: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 14,
+            paddingVertical: 0,
+        },
+
+        webPickerTextInput: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            paddingVertical: 12,
+            outlineStyle: "none" as any,
         },
         header: {
             marginBottom: theme.spacing.xl,
