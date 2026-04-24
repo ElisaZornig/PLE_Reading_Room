@@ -288,6 +288,24 @@ const nl = {
         you: "Jij",
         addedOn: "Toegevoegd op %{date}",
         editReplyPlaceholder: "Bewerk je reactie",
+        loadErrorTitle: "Er ging iets mis",
+        loadErrorMessage: "Er ging iets mis bij het laden van de discussie.",
+
+        deleteQuestionTitle: "Vraag verwijderen",
+        deleteQuestionMessage: "Weet je zeker dat je deze vraag wilt verwijderen? Alle reacties worden ook verwijderd.",
+        deleteQuestionErrorTitle: "Fout bij verwijderen vraag",
+        deleteQuestionErrorMessage: "Er ging iets mis bij het verwijderen van de vraag.",
+
+        deleteReplyTitle: "Reactie verwijderen",
+        deleteReplyMessage: "Weet je zeker dat je deze reactie wilt verwijderen?",
+        deleteReplyErrorTitle: "Fout bij verwijderen reactie",
+        deleteReplyErrorMessage: "Er ging iets mis bij het verwijderen van de reactie.",
+
+        clearRepliesTitle: "Reacties wissen",
+        clearRepliesMessage: "Weet je zeker dat je alle reacties bij deze vraag wilt verwijderen?",
+        clearRepliesConfirm: "Wissen",
+        clearRepliesErrorTitle: "Fout bij wissen reacties",
+        clearRepliesErrorMessage: "Er ging iets mis bij het wissen van de reacties.",
     },
     planMeeting: {
         title: "Meeting plannen",

@@ -37,6 +37,7 @@ import {subscribeToRefresh, triggerRefresh} from "@/src/utils/refreshEvents";
 import {createPageStyles} from "@/src/styles/pageStyles";
 import {t} from "@/src/i18n";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {showAppAlert, showAppConfirm} from "@/src/utils/appAlert";
 
 export default function DiscussionScreen() {
     const theme = useAppTheme();
@@ -107,8 +108,10 @@ export default function DiscussionScreen() {
             setRepliesByQuestion(Object.fromEntries(repliesEntries));
         } catch (error) {
             console.error("Error loading discussion:", error);
-            Alert.alert("Error", "Something went wrong while loading the discussion.");
-        } finally {
+            showAppAlert(
+                t("discussion.loadErrorTitle"),
+                t("discussion.loadErrorMessage")
+            );        } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
@@ -247,38 +250,35 @@ export default function DiscussionScreen() {
         }
     }
 
-    function handleDeleteQuestion(questionId: string) {
-        Alert.alert(
-            "Delete question",
-            "Are you sure you want to delete this question? All replies will also be removed.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setDeletingQuestionId(questionId);
+    async function handleDeleteQuestion(questionId: string) {
+        const confirmed = await showAppConfirm({
+            title: t("discussion.deleteQuestionTitle"),
+            message: t("discussion.deleteQuestionMessage"),
+            confirmText: t("common.delete"),
+            cancelText: t("common.cancel"),
+        });
 
-                            await deleteDiscussionQuestionInSupabase({
-                                questionId,
-                            });
+        if (!confirmed) return;
 
-                            await loadDiscussion();
-                            triggerRefresh("club");
-                        } catch (error) {
-                            const message =
-                                error instanceof Error
-                                    ? error.message
-                                    : "Something went wrong while deleting the question.";
-                            Alert.alert("Delete question error", message);
-                        } finally {
-                            setDeletingQuestionId(null);
-                        }
-                    },
-                },
-            ]
-        );
+        try {
+            setDeletingQuestionId(questionId);
+
+            await deleteDiscussionQuestionInSupabase({
+                questionId,
+            });
+
+            await loadDiscussion();
+            triggerRefresh("club");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : t("discussion.deleteQuestionErrorMessage");
+
+            showAppAlert(t("discussion.deleteQuestionErrorTitle"), message);
+        } finally {
+            setDeletingQuestionId(null);
+        }
     }
     function handleStartEditReply(reply: DiscussionReply) {
         setEditingReplyId(reply.id);
@@ -322,69 +322,65 @@ export default function DiscussionScreen() {
         }
     }
 
-    function handleDeleteReply(replyId: string) {
-        Alert.alert(
-            "Delete reply",
-            "Are you sure you want to delete this reply?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setDeletingReplyId(replyId);
+    async function handleDeleteReply(replyId: string) {
+        const confirmed = await showAppConfirm({
+            title: t("discussion.deleteReplyTitle"),
+            message: t("discussion.deleteReplyMessage"),
+            confirmText: t("common.delete"),
+            cancelText: t("common.cancel"),
+        });
 
-                            await deleteDiscussionReplyInSupabase({
-                                replyId,
-                            });
+        if (!confirmed) return;
 
-                            await loadDiscussion();
-                        } catch (error) {
-                            const message =
-                                error instanceof Error
-                                    ? error.message
-                                    : "Something went wrong while deleting the reply.";
-                            Alert.alert("Delete reply error", message);
-                        } finally {
-                            setDeletingReplyId(null);
-                        }
-                    },
-                },
-            ]
-        );
+        try {
+            setDeletingReplyId(replyId);
+
+            await deleteDiscussionReplyInSupabase({
+                replyId,
+            });
+
+            await loadDiscussion();
+            triggerRefresh("club");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : t("discussion.deleteReplyErrorMessage");
+
+            showAppAlert(t("discussion.deleteReplyErrorTitle"), message);
+        } finally {
+            setDeletingReplyId(null);
+        }
     }
-    function handleClearReplies(questionId: string) {
-        Alert.alert(
-            "Clear replies",
-            "Are you sure you want to remove all replies for this question?",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Clear",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            setClearingRepliesForQuestionId(questionId);
+    async function handleClearReplies(questionId: string) {
+        const confirmed = await showAppConfirm({
+            title: t("discussion.clearRepliesTitle"),
+            message: t("discussion.clearRepliesMessage"),
+            confirmText: t("discussion.clearRepliesConfirm"),
+            cancelText: t("common.cancel"),
+        });
 
-                            await clearDiscussionRepliesForQuestionInSupabase({
-                                questionId,
-                            });
+        if (!confirmed) return;
 
-                            await loadDiscussion();
-                        } catch (error) {
-                            const message =
-                                error instanceof Error
-                                    ? error.message
-                                    : "Something went wrong while clearing replies.";
-                            Alert.alert("Clear replies error", message);
-                        } finally {
-                            setClearingRepliesForQuestionId(null);
-                        }
-                    },
-                },
-            ]
-        );
+        try {
+            setClearingRepliesForQuestionId(questionId);
+
+            await clearDiscussionRepliesForQuestionInSupabase({
+                questionId,
+            });
+
+            await loadDiscussion();
+            triggerRefresh("club");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : t("discussion.clearRepliesErrorMessage");
+
+            showAppAlert(t("discussion.clearRepliesErrorTitle"), message);
+        } finally {
+            setClearingRepliesForQuestionId(null);
+        }
     }
     const screenContent = (
         <View style={styles.screen}>

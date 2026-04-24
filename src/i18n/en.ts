@@ -291,6 +291,24 @@ const en = {
         you: "You",
         addedOn: "Added %{date}",
         editReplyPlaceholder: "Edit your reply",
+        loadErrorTitle: "Something went wrong",
+        loadErrorMessage: "Something went wrong while loading the discussion.",
+
+        deleteQuestionTitle: "Delete question",
+        deleteQuestionMessage: "Are you sure you want to delete this question? All replies will also be removed.",
+        deleteQuestionErrorTitle: "Delete question error",
+        deleteQuestionErrorMessage: "Something went wrong while deleting the question.",
+
+        deleteReplyTitle: "Delete reply",
+        deleteReplyMessage: "Are you sure you want to delete this reply?",
+        deleteReplyErrorTitle: "Delete reply error",
+        deleteReplyErrorMessage: "Something went wrong while deleting the reply.",
+
+        clearRepliesTitle: "Clear replies",
+        clearRepliesMessage: "Are you sure you want to remove all replies for this question?",
+        clearRepliesConfirm: "Clear",
+        clearRepliesErrorTitle: "Clear replies error",
+        clearRepliesErrorMessage: "Something went wrong while clearing replies.",
     },
     planMeeting: {
         title: "Plan a meeting",
