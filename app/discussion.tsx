@@ -36,6 +36,7 @@ import LottieView from 'lottie-react-native';
 import {subscribeToRefresh, triggerRefresh} from "@/src/utils/refreshEvents";
 import {createPageStyles} from "@/src/styles/pageStyles";
 import {t} from "@/src/i18n";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 export default function DiscussionScreen() {
     const theme = useAppTheme();
@@ -389,23 +390,8 @@ export default function DiscussionScreen() {
         <View style={styles.screen}>
             <View style={styles.header}>
                 <View style={styles.titleRow}>
-                    <Pressable style={styles.backButton} onPress={() => router.back()}>
-                        <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                    </Pressable>
 
-                    <View style={pageStyles.pageHeader}>
-                        <Text style={pageStyles.pageTitle}>{t("discussion.title")}</Text>
-                    </View>
 
-                    <View style={styles.headerSpacer} />
-
-                    <Pressable
-                        style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
-                        onPress={() => void loadDiscussion(false)}
-                        disabled={isRefreshing}
-                    >
-                        <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
-                    </Pressable>
                 </View>
 
                 <Text style={pageStyles.pageSubtitle}>{t("discussion.subtitle")}</Text>
@@ -733,8 +719,15 @@ export default function DiscussionScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("discussion.title")}
+                          right = {<Pressable
+                style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+                onPress={() => void loadDiscussion(false)}
+                disabled={isRefreshing}
+            >
+                <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
+            </Pressable>}
+            />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

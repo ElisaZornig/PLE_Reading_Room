@@ -23,6 +23,8 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import {setCurrentClubBookAndAddToTbr, updateCurrentBookInSupabase} from "@/src/services/supabaseClub";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {t} from "@/src/i18n";
 
 const WHEEL_SIZE = 280;
 const RADIUS = 130;
@@ -55,7 +57,10 @@ export default function SpinTheWheelScreen() {
             setShortlistBooks(data);
         } catch (error) {
             console.error("Error loading shortlist for wheel:", error);
-            Alert.alert("Error", "Something went wrong while loading the shortlist.");
+            Alert.alert(
+                t("spinWheel.errors.loadTitle"),
+                t("spinWheel.errors.loadMessage")
+            );
         } finally {
             setIsLoading(false);
         }
@@ -169,39 +174,30 @@ export default function SpinTheWheelScreen() {
             });
         } catch (error) {
             console.error("Error setting current book from wheel:", error);
-            Alert.alert("Error", "Something went wrong while setting the current book.");
+            Alert.alert(
+                t("spinWheel.errors.setCurrentTitle"),
+                t("spinWheel.errors.setCurrentMessage")
+            );
         }
     }
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("spinWheel.title")} />
             <View style={styles.screen}>
                 <View style={styles.header}>
-                    <View style={styles.titleRow}>
-                        <Pressable style={styles.backButton} onPress={() => router.back()}>
-                            <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                        </Pressable>
 
-                        <Text style={styles.title}>Spin the wheel</Text>
-                    </View>
-
-                    <Text style={styles.subtitle}>
-                        Spin the wheel to choose your next club book from the shortlist.
-                    </Text>
+                    <Text style={styles.subtitle}>{t("spinWheel.subtitle")}</Text>
                 </View>
 
                 {isLoading ? (
                     <View style={styles.stateWrapper}>
-                        <Text style={styles.stateText}>Loading shortlist...</Text>
+                        <Text style={styles.stateText}>{t("spinWheel.loading")}</Text>
                     </View>
                 ) : wheelBooks.length < 2 ? (
                     <View style={styles.emptyCard}>
-                        <Text style={styles.emptyTitle}>Not enough books to spin</Text>
-                        <Text style={styles.emptyText}>
-                            Add at least 2 books to the shortlist first.
-                        </Text>
+                        <Text style={styles.emptyTitle}>{t("spinWheel.notEnoughTitle")}</Text>
+                        <Text style={styles.emptyText}>{t("spinWheel.notEnoughText")}</Text>
 
                         <Pressable
                             style={styles.secondaryButton}
@@ -212,7 +208,7 @@ export default function SpinTheWheelScreen() {
                                 })
                             }
                         >
-                            <Text style={styles.secondaryButtonText}>Go to shortlist</Text>
+                            <Text style={styles.secondaryButtonText}>{t("spinWheel.goToShortlist")}</Text>
                         </Pressable>
                     </View>
                 ) : (
@@ -301,10 +297,10 @@ export default function SpinTheWheelScreen() {
                         >
                             <Text style={styles.primaryButtonText}>
                                 {isSpinning
-                                    ? "Spinning..."
+                                    ? t("spinWheel.spinning")
                                     : winner
-                                        ? "Spin again"
-                                        : "Spin the wheel"}
+                                        ? t("spinWheel.spinAgain")
+                                        : t("spinWheel.spinButton")}
                             </Text>
                         </Pressable>
                         {/*<View style={styles.legendCard}>*/}
@@ -328,7 +324,7 @@ export default function SpinTheWheelScreen() {
 
                         {winner ? (
                             <View style={styles.resultCard}>
-                                <Text style={styles.resultLabel}>Winner</Text>
+                                <Text style={styles.resultLabel}>{t("spinWheel.winner")}</Text>
                                 <Text style={styles.resultText}>{winner.title}</Text>
                                 <Text style={styles.resultSubtext}>{winner.author}</Text>
                             </View>
@@ -338,7 +334,7 @@ export default function SpinTheWheelScreen() {
                                 style={styles.secondaryButton}
                                 onPress={handleMakeCurrentBook}
                             >
-                                <Text style={styles.secondaryButtonText}>Make current book</Text>
+                                <Text style={styles.secondaryButtonText}>{t("spinWheel.makeCurrentBook")}</Text>
                             </Pressable>
                         ) : null}
 

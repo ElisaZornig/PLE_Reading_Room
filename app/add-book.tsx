@@ -37,6 +37,7 @@ import { SearchBookResult } from "@/src/types/book";
 import { showAppAlert } from "@/src/utils/appAlert";
 import { getOpenLibraryWorkId } from "@/src/utils/openLibrary";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 export default function AddBookScreen() {
     const theme = useAppTheme();
@@ -134,18 +135,6 @@ export default function AddBookScreen() {
     const screenContent = (
         <View style={pageStyles.screen}>
             <View style={styles.fixedHeaderContent}>
-                <View style={styles.headerRow}>
-                    <Pressable onPress={() => router.back()} style={styles.backButton}>
-                        <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                    </Pressable>
-
-                    <View style={pageStyles.pageHeader}>
-                        <Text style={pageStyles.pageTitle}>{t("books.addBook")}</Text>
-                    </View>
-                </View>
-
-                <Text style={styles.subtitle}>{t("addBook.subtitle")}</Text>
-
                 <View style={styles.searchRow}>
                     <View style={styles.searchBar}>
                         <TextInput
@@ -263,7 +252,7 @@ export default function AddBookScreen() {
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
+            <ScreenTopBar title={t("books.addBook")} />
 
             <KeyboardAvoidingView
                 style={pageStyles.safeArea}

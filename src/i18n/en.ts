@@ -119,6 +119,7 @@ const en = {
         save: "Save",
         edit: "Edit",
         delete: "Delete",
+        loading: "Loading...",
     },
     addBook: {
         subtitle: "Search for a book to add to your library.",
@@ -336,6 +337,44 @@ const en = {
         removeConfirmTitle: "Remove from final picks",
         removeConfirmText: "Do you want to remove this book from the final picks?",
         bookFallback: "Book",
+    },
+    createClub: {
+        title: "Create club"
+    },
+    setCurrentBook: {
+        title: "Set current book",
+        searchPlaceholder: "Search for a book",
+        searchError: "Something went wrong while searching.",
+        selectBookTitle: "Select a book",
+        selectBookMessage: "Please choose a book first.",
+        setErrorTitle: "Set current book error",
+        setErrorFallback: "Something went wrong while setting the current book.",
+        searching: "Searching books...",
+        emptyTitle: "Search for a book",
+        emptyText: "Find a book and set it as the current club book.",
+        noResultsTitle: "No results",
+        noResultsText: "Try another title or author.",
+        saving: "Saving...",
+        submit: "Set current book",
+    },
+    spinWheel: {
+        title: "Spin the wheel",
+        subtitle: "Spin the wheel to choose your next club book from the final picks.",
+        loading: "Loading final picks...",
+        notEnoughTitle: "Not enough books to spin",
+        notEnoughText: "Add at least 2 books to the final picks first.",
+        goToShortlist: "Go to final picks",
+        spinning: "Spinning...",
+        spinAgain: "Spin again",
+        spinButton: "Spin the wheel",
+        winner: "Winner",
+        makeCurrentBook: "Make current book",
+        errors: {
+            loadTitle: "Something went wrong",
+            loadMessage: "Something went wrong while loading the final picks.",
+            setCurrentTitle: "Something went wrong",
+            setCurrentMessage: "Something went wrong while setting the current book.",
+        },
     },
 
 

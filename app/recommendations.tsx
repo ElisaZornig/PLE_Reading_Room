@@ -32,6 +32,7 @@ import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { subscribeToRefresh } from "@/src/utils/refreshEvents";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 type RecommendationSessionCache = {
     hasLoaded: boolean;
@@ -335,33 +336,23 @@ export default function RecommendationsScreen() {
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("recommendations.title")} right = {
+                <Pressable
+                    style={[
+                        styles.refreshButton,
+                        isRefreshing && styles.refreshButtonDisabled,
+                    ]}
+                    onPress={() => void refreshRecommendations()}
+                    disabled={isRefreshing}
+                >
+                    <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
+                </Pressable>
+            }/>
             <View style={pageStyles.screen}>
                 <View style={styles.header}>
                     <View style={styles.headerTopRow}>
-                        <View style={styles.titleRow}>
-                            <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                            </Pressable>
 
-                            <View style={pageStyles.pageHeader}>
-                                <Text style={pageStyles.pageTitle}>
-                                    {t("recommendations.title")}
-                                </Text>
-                            </View>
-                        </View>
 
-                        <Pressable
-                            style={[
-                                styles.refreshButton,
-                                isRefreshing && styles.refreshButtonDisabled,
-                            ]}
-                            onPress={() => void refreshRecommendations()}
-                            disabled={isRefreshing}
-                        >
-                            <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
-                        </Pressable>
                     </View>
 
                     <Text style={pageStyles.pageSubtitle}>

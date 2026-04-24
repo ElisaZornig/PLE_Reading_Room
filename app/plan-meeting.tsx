@@ -26,6 +26,7 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { triggerRefresh } from "@/src/utils/refreshEvents";
 import { showAppAlert } from "@/src/utils/appAlert";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 export default function PlanMeetingScreen() {
     const theme = useAppTheme();
@@ -128,6 +129,31 @@ export default function PlanMeetingScreen() {
             applyTime(pickedDate);
         }
     }
+    function handleWebDateChange(value: string) {
+        setDate(value);
+
+        const [year, month, day] = value.split("-").map(Number);
+
+        if (!year || !month || !day) return;
+
+        const updated = new Date(selectedDateTime);
+        updated.setFullYear(year, month - 1, day);
+
+        setSelectedDateTime(updated);
+    }
+
+    function handleWebTimeChange(value: string) {
+        setTime(value);
+
+        const [hours, minutes] = value.split(":").map(Number);
+
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return;
+
+        const updated = new Date(selectedDateTime);
+        updated.setHours(hours, minutes, 0, 0);
+
+        setSelectedDateTime(updated);
+    }
 
     async function handleCreateMeeting() {
         try {
@@ -155,139 +181,149 @@ export default function PlanMeetingScreen() {
             setIsLoading(false);
         }
     }
+    const screenContent = (
+        <View style={pageStyles.screen}>
+            <View style={styles.screenContent}>
+
+                <View style={styles.form}>
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>{t("planMeeting.meetingTitle")}</Text>
+                        <TextInput
+                            value={title}
+                            onChangeText={setTitle}
+                            placeholder={t("planMeeting.titlePlaceholder")}
+                            placeholderTextColor={theme.colors.textMuted}
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>{t("planMeeting.date")}</Text>
+
+                        {Platform.OS === "web" ? (
+                            <TextInput
+                                value={date}
+                                onChangeText={handleWebDateChange}
+                                style={styles.input}
+                                placeholder="YYYY-MM-DD"
+                                placeholderTextColor={theme.colors.textMuted}
+                                {...({ type: "date" } as any)}
+                            />
+                        ) : (
+                            <Pressable style={styles.input} onPress={openDatePicker}>
+                                <Text style={styles.inputText}>{date}</Text>
+                            </Pressable>
+                        )}
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>{t("planMeeting.time")}</Text>
+
+                        {Platform.OS === "web" ? (
+                            <TextInput
+                                value={time}
+                                onChangeText={handleWebTimeChange}
+                                style={styles.input}
+                                placeholder="HH:MM"
+                                placeholderTextColor={theme.colors.textMuted}
+                                {...({ type: "time" } as any)}
+                            />
+                        ) : (
+                            <Pressable style={styles.input} onPress={openTimePicker}>
+                                <Text style={styles.inputText}>{time}</Text>
+                            </Pressable>
+                        )}
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>{t("planMeeting.location")}</Text>
+                        <TextInput
+                            value={location}
+                            onChangeText={setLocation}
+                            placeholder={t("planMeeting.optional")}
+                            placeholderTextColor={theme.colors.textMuted}
+                            style={styles.input}
+                        />
+                    </View>
+
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>{t("planMeeting.notes")}</Text>
+                        <TextInput
+                            value={notes}
+                            onChangeText={setNotes}
+                            placeholder={t("planMeeting.optional")}
+                            placeholderTextColor={theme.colors.textMuted}
+                            style={[styles.input, styles.textArea]}
+                            multiline
+                            textAlignVertical="top"
+                        />
+                    </View>
+                </View>
+
+                {Platform.OS !== "web" ? (
+                    <Modal
+                        visible={pickerMode !== null}
+                        transparent
+                        animationType="fade"
+                        onRequestClose={() => setPickerMode(null)}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalCard}>
+                                {pickerMode ? (
+                                    <DateTimePicker
+                                        value={selectedDateTime}
+                                        mode={pickerMode}
+                                        display="spinner"
+                                        onChange={handleIosPickerChange}
+                                        style={styles.iosPicker}
+                                    />
+                                ) : null}
+
+                                <Pressable
+                                    style={styles.modalButton}
+                                    onPress={() => setPickerMode(null)}
+                                >
+                                    <Text style={styles.modalButtonText}>
+                                        {t("planMeeting.done")}
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </Modal>
+                ) : null}
+
+                <Pressable
+                    style={[
+                        styles.primaryButton,
+                        isLoading && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={handleCreateMeeting}
+                    disabled={isLoading}
+                >
+                    <Text style={styles.primaryButtonText}>
+                        {isLoading
+                            ? t("planMeeting.saving")
+                            : t("planMeeting.save")}
+                    </Text>
+                </Pressable>
+            </View>
+        </View>
+    )
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("planMeeting.title")} />
             <KeyboardAvoidingView
                 style={pageStyles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                    <View style={pageStyles.screen}>
-                        <View style={styles.screenContent}>
-                            <View style={styles.header}>
-                                <View style={styles.titleRow}>
-                                    <Pressable
-                                        style={styles.backButton}
-                                        onPress={() => router.back()}
-                                    >
-                                        <Feather
-                                            name="chevron-left"
-                                            size={22}
-                                            color={theme.colors.accent}
-                                        />
-                                    </Pressable>
-
-                                    <View style={pageStyles.pageHeader}>
-                                        <Text style={pageStyles.pageTitle}>
-                                            {t("planMeeting.title")}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <Text style={pageStyles.pageSubtitle}>
-                                    {t("planMeeting.subtitle")}
-                                </Text>
-                            </View>
-
-                            <View style={styles.form}>
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.label}>{t("planMeeting.meetingTitle")}</Text>
-                                    <TextInput
-                                        value={title}
-                                        onChangeText={setTitle}
-                                        placeholder={t("planMeeting.titlePlaceholder")}
-                                        placeholderTextColor={theme.colors.textMuted}
-                                        style={styles.input}
-                                    />
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.label}>{t("planMeeting.date")}</Text>
-                                    <Pressable style={styles.input} onPress={openDatePicker}>
-                                        <Text style={styles.inputText}>{date}</Text>
-                                    </Pressable>
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.label}>{t("planMeeting.time")}</Text>
-                                    <Pressable style={styles.input} onPress={openTimePicker}>
-                                        <Text style={styles.inputText}>{time}</Text>
-                                    </Pressable>
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.label}>{t("planMeeting.location")}</Text>
-                                    <TextInput
-                                        value={location}
-                                        onChangeText={setLocation}
-                                        placeholder={t("planMeeting.optional")}
-                                        placeholderTextColor={theme.colors.textMuted}
-                                        style={styles.input}
-                                    />
-                                </View>
-
-                                <View style={styles.fieldGroup}>
-                                    <Text style={styles.label}>{t("planMeeting.notes")}</Text>
-                                    <TextInput
-                                        value={notes}
-                                        onChangeText={setNotes}
-                                        placeholder={t("planMeeting.optional")}
-                                        placeholderTextColor={theme.colors.textMuted}
-                                        style={[styles.input, styles.textArea]}
-                                        multiline
-                                        textAlignVertical="top"
-                                    />
-                                </View>
-                            </View>
-
-                            <Modal
-                                visible={pickerMode !== null}
-                                transparent
-                                animationType="fade"
-                                onRequestClose={() => setPickerMode(null)}
-                            >
-                                <View style={styles.modalOverlay}>
-                                    <View style={styles.modalCard}>
-                                        <DateTimePicker
-                                            value={selectedDateTime}
-                                            mode={pickerMode === "date" ? "date" : "time"}
-                                            display="spinner"
-                                            onChange={handleIosPickerChange}
-                                            style={styles.iosPicker}
-                                        />
-
-                                        <Pressable
-                                            style={styles.modalButton}
-                                            onPress={() => setPickerMode(null)}
-                                        >
-                                            <Text style={styles.modalButtonText}>
-                                                {t("planMeeting.done")}
-                                            </Text>
-                                        </Pressable>
-                                    </View>
-                                </View>
-                            </Modal>
-
-                            <Pressable
-                                style={[
-                                    styles.primaryButton,
-                                    isLoading && styles.primaryButtonDisabled,
-                                ]}
-                                onPress={handleCreateMeeting}
-                                disabled={isLoading}
-                            >
-                                <Text style={styles.primaryButtonText}>
-                                    {isLoading
-                                        ? t("planMeeting.saving")
-                                        : t("planMeeting.save")}
-                                </Text>
-                            </Pressable>
-                        </View>
-                    </View>
-                </TouchableWithoutFeedback>
+                {Platform.OS === "web" ? (
+                    screenContent
+                ) : (
+                    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                        {screenContent}
+                    </TouchableWithoutFeedback>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );

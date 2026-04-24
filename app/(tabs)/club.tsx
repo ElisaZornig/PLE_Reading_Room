@@ -22,6 +22,7 @@ import {AppTheme, darkTheme} from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { showAppAlert, showAppConfirm } from "@/src/utils/appAlert";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
+import {ProfileButton} from "@/src/components/ProfileButton";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -183,7 +184,6 @@ export default function ClubScreen() {
     if (isLoading) {
         return (
             <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-                <AppHeader />
                 <View style={styles.stateWrapper}>
                     <LottieView
                         source={require("@/assets/animations/loading-book.json")}
@@ -200,9 +200,9 @@ export default function ClubScreen() {
     if (!club) {
         return (
             <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-                <AppHeader />
                 <View style={pageStyles.screen}>
-                    <ScrollView contentContainerStyle={styles.content}>
+                    <ScrollView contentContainerStyle={styles.clubContent}
+                    >
                         <View style={pageStyles.pageHeader}>
                             <Text style={pageStyles.pageTitle}>{t("club.pageTitle")}</Text>
                         </View>
@@ -241,18 +241,18 @@ export default function ClubScreen() {
     const owner = memberProgress.find((member) => member.role === "owner");
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
-
             <ScrollView
                 style={pageStyles.screen}
-                contentContainerStyle={styles.content}
+                contentContainerStyle={styles.clubContent}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={pageStyles.pageHeader}>
-                    <Text style={pageStyles.pageTitle}>{club.name}</Text>
-                </View>
+                <View style={styles.topRow}>
+                    <View style={styles.topText}>
+                        <Text style={pageStyles.pageTitle}>{club.name}</Text>
+                    </View>
 
-                {/*<Text style={pageStyles.pageSubtitle}>{t("club.pageSubtitle")}</Text>*/}
+                    <ProfileButton />
+                </View>
 
                 <View style={styles.statsRow}>
 
@@ -645,6 +645,22 @@ function createStyles(theme: AppTheme) {
             paddingHorizontal: theme.spacing.lg,
             justifyContent: "center",
             alignItems: "center",
+        },
+        topRow: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+            marginBottom: theme.spacing.md,
+        },
+        topText: {
+            flex: 1,
+        },
+        clubContent: {
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.md,
+            paddingBottom: 130,
+            gap: theme.spacing.lg,
         },
         loadingAnimation: {
             width: 200,

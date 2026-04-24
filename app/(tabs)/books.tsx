@@ -22,6 +22,7 @@ import { Book } from "@/src/types/book";
 import {getBookStatusColors, getBookStatusLabel} from "@/src/utils/bookStatus";
 import { showAppAlert, showAppConfirm } from "@/src/utils/appAlert";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
+import {ProfileButton} from "@/src/components/ProfileButton";
 
 export default function BooksScreen() {
     const theme = useAppTheme();
@@ -109,15 +110,17 @@ export default function BooksScreen() {
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
 
             <View style={pageStyles.screen}>
                 <View style={styles.fixedHeaderContent}>
-                    <View style={pageStyles.pageHeader}>
-                        <Text style={pageStyles.pageTitle}>{t("books.title")}</Text>
-                    </View>
+                    <View style={styles.topRow}>
+                        <View style={styles.topText}>
+                            <Text style={pageStyles.pageTitle}>{t("books.title")}</Text>
+                            <Text style={pageStyles.pageSubtitle}>{t("books.subtitle")}</Text>
+                        </View>
 
-                    <Text style={pageStyles.pageSubtitle}>{t("books.subtitle")}</Text>
+                        <ProfileButton />
+                    </View>
 
                     <Pressable
                         style={styles.addButton}
@@ -268,6 +271,16 @@ function createStyles(theme: AppTheme) {
             paddingTop: theme.spacing.lg,
             paddingBottom: theme.spacing.md,
         },
+        topRow: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+            marginBottom: theme.spacing.md,
+        },
+        topText: {
+            flex: 1,
+        },
         addButton: {
             flexDirection: "row",
             alignItems: "center",
@@ -310,7 +323,7 @@ function createStyles(theme: AppTheme) {
         },
         bookListContent: {
             paddingHorizontal: theme.spacing.lg,
-            paddingBottom: theme.spacing.xl,
+            paddingBottom: 130,
             gap: theme.spacing.md,
         },
         bookCard: {

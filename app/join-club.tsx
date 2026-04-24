@@ -20,6 +20,7 @@ import { t } from "@/src/i18n";
 import { joinClubByCode } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 export default function JoinClubScreen() {
     const theme = useAppTheme();
@@ -62,17 +63,6 @@ export default function JoinClubScreen() {
     const screenContent = (
         <View style={styles.screen}>
             <View style={styles.header}>
-                <View style={styles.titleRow}>
-                    <Pressable style={styles.backButton} onPress={() => router.back()}>
-                        <Feather
-                            name="chevron-left"
-                            size={24}
-                            color={theme.colors.accent}
-                        />
-                    </Pressable>
-
-                    <Text style={styles.title}>{t("joinClub.title")}</Text>
-                </View>
 
                 <Text style={styles.subtitle}>{t("joinClub.subtitle")}</Text>
             </View>
@@ -110,8 +100,7 @@ export default function JoinClubScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("joinClub.title")} />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

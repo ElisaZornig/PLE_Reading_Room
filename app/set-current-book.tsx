@@ -21,6 +21,8 @@ import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
 import {AppHeader} from "@/src/components/AppHeader";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {t} from "@/src/i18n";
 
 export default function SetCurrentBookScreen() {
     const theme = useAppTheme();
@@ -62,7 +64,7 @@ export default function SetCurrentBookScreen() {
         } catch (error) {
             console.error("Error searching books:", error);
             setBooks([]);
-            setErrorText("Something went wrong while searching.");
+            setErrorText(t("setCurrentBook.searchError"));
         } finally {
             setIsLoading(false);
         }
@@ -71,7 +73,10 @@ export default function SetCurrentBookScreen() {
     async function handleSave() {
         try {
             if (!selectedBook) {
-                Alert.alert("Select a book", "Please choose a book first.");
+                Alert.alert(
+                    t("setCurrentBook.selectBookTitle"),
+                    t("setCurrentBook.selectBookMessage")
+                );
                 return;
             }
 
@@ -92,34 +97,22 @@ export default function SetCurrentBookScreen() {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Something went wrong while setting the current book.";
-            Alert.alert("Set current book error", message);
+                    : t("setCurrentBook.setErrorFallback");
+
+            Alert.alert(t("setCurrentBook.setErrorTitle"), message);
         } finally {
             setIsSaving(false);
         }
     }
     const screenContent = (
         <View style={styles.screen}>
-            <View style={styles.header}>
-                <View style={styles.titleRow}>
-                    <Pressable style={styles.backButton} onPress={() => router.back()}>
-                        <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                    </Pressable>
-
-                    <Text style={styles.title}>Set current book</Text>
-                </View>
-
-                <Text style={styles.subtitle}>
-                    Search for a book and choose it as your current club book.
-                </Text>
-            </View>
 
             <View style={styles.searchRow}>
                 <View style={styles.searchBar}>
                     <TextInput
                         value={searchQuery}
                         onChangeText={setSearchQuery}
-                        placeholder="Search for a book"
+                        placeholder={t("setCurrentBook.searchPlaceholder")}
                         placeholderTextColor={theme.colors.textMuted}
                         style={styles.searchInput}
                         returnKeyType="search"
@@ -140,19 +133,17 @@ export default function SetCurrentBookScreen() {
 
             {isLoading ? (
                 <View style={styles.stateWrapper}>
-                    <Text style={styles.stateText}>Searching books...</Text>
+                    <Text style={styles.stateText}>{t("setCurrentBook.searching")}</Text>
                 </View>
             ) : !hasSearched ? (
                 <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>Search for a book</Text>
-                    <Text style={styles.emptyText}>
-                        Find a book and set it as the current club book.
-                    </Text>
+                    <Text style={styles.emptyTitle}>{t("setCurrentBook.emptyTitle")}</Text>
+                    <Text style={styles.emptyText}>{t("setCurrentBook.emptyText")}</Text>
                 </View>
             ) : books.length === 0 ? (
                 <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>No results</Text>
-                    <Text style={styles.emptyText}>Try another title or author.</Text>
+                    <Text style={styles.emptyTitle}>{t("setCurrentBook.noResultsTitle")}</Text>
+                    <Text style={styles.emptyText}>{t("setCurrentBook.noResultsText")}</Text>
                 </View>
             ) : (
                 <>
@@ -197,7 +188,7 @@ export default function SetCurrentBookScreen() {
                         disabled={isSaving}
                     >
                         <Text style={styles.primaryButtonText}>
-                            {isSaving ? "Saving..." : "Set current book"}
+                            {isSaving ? t("setCurrentBook.saving") : t("setCurrentBook.submit")}
                         </Text>
                     </Pressable>
                 </>
@@ -207,8 +198,7 @@ export default function SetCurrentBookScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("setCurrentBook.title")} />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

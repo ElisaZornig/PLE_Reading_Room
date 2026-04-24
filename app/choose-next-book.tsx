@@ -29,6 +29,8 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { SearchBookResult } from "@/src/types/book";
 import { useFocusEffect } from "@react-navigation/native";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {t} from "@/src/i18n";
 
 export default function ChooseNextBookScreen() {
     const theme = useAppTheme();
@@ -59,7 +61,10 @@ export default function ChooseNextBookScreen() {
             setShortlistBooks(data);
         } catch (error) {
             console.error("Error loading shortlist:", error);
-            Alert.alert("Error", "Something went wrong while loading the shortlist.");
+            Alert.alert(
+                t("chooseNextBook.errors.loadTitle"),
+                t("chooseNextBook.errors.loadMessage")
+            );
         } finally {
             setIsLoadingShortlist(false);
         }
@@ -91,7 +96,7 @@ export default function ChooseNextBookScreen() {
         } catch (error) {
             console.error("Error searching books:", error);
             setSearchResults([]);
-            setErrorText("Something went wrong while searching.");
+            setErrorText(t("chooseNextBook.errors.searchMessage"));
         } finally {
             setIsSearching(false);
         }
@@ -111,8 +116,9 @@ export default function ChooseNextBookScreen() {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Something went wrong while adding this book.";
-            Alert.alert("Add to shortlist error", message);
+                    : t("chooseNextBook.errors.addMessage");
+
+            Alert.alert(t("chooseNextBook.errors.addTitle"), message);
         } finally {
             setIsAddingBookId(null);
         }
@@ -121,7 +127,7 @@ export default function ChooseNextBookScreen() {
     function handleRemoveBook(item: ClubShortlistItem) {
         if (Platform.OS === "web") {
             const confirmed = globalThis.confirm?.(
-                `Do you want to remove "${item.title}" from the shortlist?`
+                t("chooseNextBook.removeConfirm.message", { title: item.title })
             );
 
             if (confirmed) {
@@ -132,7 +138,7 @@ export default function ChooseNextBookScreen() {
                         await loadShortlist();
                     } catch (error) {
                         console.error("Error removing shortlist item:", error);
-                        globalThis.alert?.("Something went wrong while removing this book.");
+                        globalThis.alert?.(t("chooseNextBook.errors.removeMessage"));
                     } finally {
                         setRemovingOptionId(null);
                     }
@@ -143,12 +149,15 @@ export default function ChooseNextBookScreen() {
         }
 
         Alert.alert(
-            "Remove from shortlist",
-            `Do you want to remove "${item.title}" from the shortlist?`,
+            t("chooseNextBook.removeConfirm.title"),
+            t("chooseNextBook.removeConfirm.message", { title: item.title }),
             [
-                { text: "Cancel", style: "cancel" },
                 {
-                    text: "Remove",
+                    text: t("chooseNextBook.removeConfirm.cancel"),
+                    style: "cancel",
+                },
+                {
+                    text: t("chooseNextBook.removeConfirm.confirm"),
                     style: "destructive",
                     onPress: async () => {
                         try {
@@ -158,8 +167,8 @@ export default function ChooseNextBookScreen() {
                         } catch (error) {
                             console.error("Error removing shortlist item:", error);
                             Alert.alert(
-                                "Remove from shortlist error",
-                                "Something went wrong while removing this book."
+                                t("chooseNextBook.errors.removeTitle"),
+                                t("chooseNextBook.errors.removeMessage")
                             );
                         } finally {
                             setRemovingOptionId(null);
@@ -174,16 +183,9 @@ export default function ChooseNextBookScreen() {
     const screenContent = (
         <View style={styles.screen}>
             <View style={styles.header}>
-                <View style={styles.titleRow}>
-                    <Pressable style={styles.backButton} onPress={() => router.back()}>
-                        <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                    </Pressable>
-
-                    <Text style={styles.title}>Choose next book</Text>
-                </View>
 
                 <Text style={styles.subtitle}>
-                    Build your shortlist, add extra books if needed, and then spin the wheel.
+                    {t("chooseNextBook.subtitle")}
                 </Text>
                 <Pressable
                     style={styles.directSetLink}
@@ -196,7 +198,7 @@ export default function ChooseNextBookScreen() {
                 >
                     <Feather name="arrow-right" size={16} color={theme.colors.accent} />
                     <Text style={styles.directSetLinkText}>
-                        Already know your next book? Set it directly
+                        {t("chooseNextBook.alreadyKnowNextBook")}
                     </Text>
                 </Pressable>
             </View>
@@ -212,13 +214,17 @@ export default function ChooseNextBookScreen() {
                         onPress={() => setIsShortlistOpen((current) => !current)}
                     >
                         <View style={styles.shortlistSummaryLeft}>
-                            <Text style={styles.sectionTitle}>Shortlist</Text>
+                            <Text style={styles.sectionTitle}>{t("chooseNextBook.shortlistTitle")}</Text>
                             <Text style={styles.shortlistSummaryText}>
                                 {isLoadingShortlist
-                                    ? "Loading..."
+                                    ? t("common.loading")
                                     : shortlistBooks.length === 0
-                                        ? "No books yet"
-                                        : `${shortlistBooks.length} book${shortlistBooks.length === 1 ? "" : "s"} ready`}
+                                        ? t("chooseNextBook.shortlistCountZero")
+                                        : shortlistBooks.length === 1
+                                            ? t("chooseNextBook.shortlistCountOne")
+                                            : t("chooseNextBook.shortlistCountOther", {
+                                                count: shortlistBooks.length,
+                                            })}
                             </Text>
                         </View>
 
@@ -247,9 +253,11 @@ export default function ChooseNextBookScreen() {
 
                     {!isLoadingShortlist && shortlistBooks.length === 0 ? (
                         <View style={styles.emptyCard}>
-                            <Text style={styles.emptyTitle}>No books in the shortlist yet</Text>
+                            <Text style={styles.emptyTitle}>
+                                {t("chooseNextBook.shortlistEmptyTitle")}
+                            </Text>
                             <Text style={styles.emptyText}>
-                                Add recommendations or search for books to build your shortlist.
+                                {t("chooseNextBook.shortlistEmptyText")}
                             </Text>
                         </View>
                     ) : null}
@@ -277,8 +285,8 @@ export default function ChooseNextBookScreen() {
                                                 <View style={styles.sourceChip}>
                                                     <Text style={styles.sourceChipText}>
                                                         {item.source === "algorithm"
-                                                            ? "Recommended"
-                                                            : "Added manually"}
+                                                            ? t("chooseNextBook.recommended")
+                                                            : t("chooseNextBook.addedManually")}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -315,12 +323,14 @@ export default function ChooseNextBookScreen() {
                     }
                 >
                     <Feather name="arrow-right-circle" size={16} color={theme.colors.accent} />
-                    <Text style={styles.secondaryButtonText}>Go to recommendations</Text>
+                    <Text style={styles.secondaryButtonText}>
+                        {t("chooseNextBook.goToRecommendations")}
+                    </Text>
                 </Pressable>
                 <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Add another book</Text>
+                    <Text style={styles.sectionTitle}>{t("chooseNextBook.addAnotherBook")}</Text>
                     <Text style={styles.sectionDescription}>
-                        Search for a book and add it to the shortlist.
+                        {t("chooseNextBook.addAnotherBookDescription")}
                     </Text>
 
                     <View style={styles.searchRow}>
@@ -328,7 +338,7 @@ export default function ChooseNextBookScreen() {
                             <TextInput
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}
-                                placeholder="Search for a book"
+                                placeholder={t("chooseNextBook.searchPlaceholder")}
                                 placeholderTextColor={theme.colors.textMuted}
                                 style={styles.searchInput}
                                 returnKeyType="search"
@@ -351,11 +361,11 @@ export default function ChooseNextBookScreen() {
                     {errorText ? <Text style={styles.errorText}>{errorText}</Text> : null}
 
                     {isSearching ? (
-                        <Text style={styles.stateText}>Searching books...</Text>
+                        <Text style={styles.stateText}>{t("chooseNextBook.searching")}</Text>
                     ) : !hasSearched ? null : searchResults.length === 0 ? (
                         <View style={styles.emptyCard}>
-                            <Text style={styles.emptyTitle}>No results</Text>
-                            <Text style={styles.emptyText}>Try another title or author.</Text>
+                            <Text style={styles.emptyTitle}>{t("chooseNextBook.noResultsTitle")}</Text>
+                            <Text style={styles.emptyText}>{t("chooseNextBook.noResultsText")}</Text>
                         </View>
                     ) : (
                         <View style={styles.resultsList}>
@@ -389,10 +399,10 @@ export default function ChooseNextBookScreen() {
                                         >
                                             <Text style={styles.addSmallButtonText}>
                                                 {isAlreadyAdded
-                                                    ? "Added"
+                                                    ? t("chooseNextBook.added")
                                                     : isAdding
-                                                        ? "Adding..."
-                                                        : "Add"}
+                                                        ? t("chooseNextBook.adding")
+                                                        : t("chooseNextBook.add")}
                                             </Text>
                                         </Pressable>
                                     </View>
@@ -418,16 +428,15 @@ export default function ChooseNextBookScreen() {
             >
                 <Text style={styles.primaryButtonText}>
                     {shortlistBooks.length < 2
-                        ? "Add at least 2 books to spin"
-                        : "Spin the wheel"}
+                        ? t("chooseNextBook.needMoreBooksToSpin")
+                        : t("chooseNextBook.spinWheel")}
                 </Text>
             </Pressable>
         </View>
     );
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("chooseNextBook.title")} />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

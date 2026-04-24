@@ -335,7 +335,44 @@ const nl = {
         removeConfirmText: "Wil je dit boek uit de eindselectie verwijderen?",
         bookFallback: "Boek",
     },
-
+    createClub: {
+        title: "Creëer club"
+    },
+    setCurrentBook: {
+        title: "Huidig boek kiezen",
+        searchPlaceholder: "Zoek een boek",
+        searchError: "Er ging iets mis tijdens het zoeken.",
+        selectBookTitle: "Kies een boek",
+        selectBookMessage: "Kies eerst een boek.",
+        setErrorTitle: "Fout bij instellen huidig boek",
+        setErrorFallback: "Er ging iets mis bij het instellen van het huidige boek.",
+        searching: "Boeken zoeken...",
+        emptyTitle: "Zoek een boek",
+        emptyText: "Zoek een boek en stel het in als het huidige boek van de club.",
+        noResultsTitle: "Geen resultaten",
+        noResultsText: "Probeer een andere titel of auteur.",
+        saving: "Opslaan...",
+        submit: "Huidig boek instellen",
+    },
+    spinWheel: {
+        title: "Draai het rad",
+        subtitle: "Draai aan het rad om jullie volgende clubboek te kiezen uit de final picks.",
+        loading: "Final picks laden...",
+        notEnoughTitle: "Niet genoeg boeken om te draaien",
+        notEnoughText: "Voeg eerst minstens 2 boeken toe aan de final picks.",
+        goToShortlist: "Naar final picks",
+        spinning: "Draaien...",
+        spinAgain: "Nog een keer draaien",
+        spinButton: "Draai het rad",
+        winner: "Winnaar",
+        makeCurrentBook: "Maak huidig boek",
+        errors: {
+            loadTitle: "Er ging iets mis",
+            loadMessage: "Er ging iets mis bij het laden van de final picks.",
+            setCurrentTitle: "Er ging iets mis",
+            setCurrentMessage: "Er ging iets mis bij het instellen van het huidige boek.",
+        },
+    },
 
 
 };

@@ -30,6 +30,7 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { Book } from "@/src/types/book";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
+import {ProfileButton} from "@/src/components/ProfileButton";
 
 type PressableCardProps = {
     onPress: () => void;
@@ -171,22 +172,27 @@ export default function HomeScreen() {
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-            <AppHeader />
 
             <ScrollView
                 style={pageStyles.screen}
-                contentContainerStyle={pageStyles.content}
+                contentContainerStyle={[
+                    pageStyles.content,
+                    styles.contentWithTabBar,
+                ]}
                 showsVerticalScrollIndicator={false}
             >
-                <View style={pageStyles.pageHeader}>
-                    <Text style={pageStyles.pageTitle}>
-                        {t("home.welcome", {
-                            name: displayName || t("home.fallbackName"),
-                        })}
-                    </Text>
-                </View>
+                <View style={styles.topRow}>
+                    <View style={styles.topText}>
+                        <Text style={pageStyles.pageTitle}>
+                            {t("home.welcome", {
+                                name: displayName || t("home.fallbackName"),
+                            })}
+                        </Text>
+                        <Text style={pageStyles.pageSubtitle}>{t("home.subtitle")}</Text>
+                    </View>
 
-                <Text style={pageStyles.pageSubtitle}>{t("home.subtitle")}</Text>
+                    <ProfileButton />
+                </View>
 
                 {currentBook ? (
                     <PressableCard onPress={() => router.push(`/book/${currentBook.id}`)} style={pageStyles.rowCard}>
@@ -330,6 +336,19 @@ export default function HomeScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        topRow: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+            marginBottom: theme.spacing.md,
+        },
+        contentWithTabBar: {
+            paddingBottom: 120,
+        },
+        topText: {
+            flex: 1,
+        },
         bookInfo: {
             flex: 1,
         },

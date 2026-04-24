@@ -16,7 +16,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 
-import { AppHeader } from "@/src/components/AppHeader";
 import { CoverPlaceholder } from "@/src/components/CoverPlaceholder";
 import { StarRatingInput } from "@/src/components/StarRatingInput";
 import { t } from "@/src/i18n";
@@ -31,6 +30,7 @@ import { Book, BookStatus, ProgressMode } from "@/src/types/book";
 import { getBookStatusColors, getBookStatusLabel } from "@/src/utils/bookStatus";
 import { showAppAlert } from "@/src/utils/appAlert";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
@@ -187,7 +187,6 @@ export default function BookDetailScreen() {
     if (isLoading) {
         return (
             <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-                <AppHeader />
                 <View style={styles.loadingWrapper}>
                     <LottieView
                         source={require("@/assets/animations/loading-book.json")}
@@ -204,7 +203,7 @@ export default function BookDetailScreen() {
     if (!book) {
         return (
             <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-                <AppHeader />
+                <ScreenTopBar title={t("bookDetail.title")} />
                 <View style={pageStyles.screen}>
                     <View style={styles.fixedHeaderContent}>
                         <View style={styles.headerRow}>
@@ -241,30 +240,12 @@ export default function BookDetailScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("bookDetail.title")} />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
             >
                 <View style={pageStyles.screen}>
-                    <View style={styles.fixedHeaderContent}>
-                        <View style={styles.headerRow}>
-                            <Pressable onPress={() => router.back()} style={styles.backButton}>
-                                <Feather
-                                    name="chevron-left"
-                                    size={22}
-                                    color={theme.colors.accent}
-                                />
-                            </Pressable>
-
-                            <View style={pageStyles.pageHeader}>
-                                <Text style={pageStyles.pageTitle}>
-                                    {t("bookDetail.title")}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
 
                     <ScrollView
                         style={pageStyles.screen}

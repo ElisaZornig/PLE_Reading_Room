@@ -16,6 +16,8 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import {AppHeader} from "@/src/components/AppHeader";
 import {Feather} from "@expo/vector-icons";
+import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {t} from "@/src/i18n";
 
 export default function CreateClubScreen() {
     const theme = useAppTheme();
@@ -51,13 +53,6 @@ export default function CreateClubScreen() {
     const screenContent =  (
     <View style={styles.screen}>
         <View style={styles.header}>
-            <View style={styles.titleRow}>
-                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                    <Feather name="chevron-left" size={24} color={theme.colors.accent} />
-                </Pressable>
-
-                <Text style={styles.title}>Create a club</Text>
-            </View>
 
             <Text style={styles.subtitle}>
                 Start your book club and invite others later.
@@ -104,8 +99,7 @@ export default function CreateClubScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <AppHeader />
-
+            <ScreenTopBar title={t("createClub.title")} />
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
