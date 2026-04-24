@@ -3,7 +3,7 @@ import DateTimePicker, {
     DateTimePickerAndroid,
 } from "@react-native-community/datetimepicker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import {createElement, useMemo, useState} from "react";
 import {
     Keyboard,
     KeyboardAvoidingView,
@@ -152,6 +152,36 @@ export default function PlanMeetingScreen() {
         updated.setHours(hours, minutes, 0, 0);
         setSelectedDateTime(updated);
     }
+    function renderWebPickerInput({
+                                      type,
+                                      value,
+                                      onChange,
+                                      placeholder,
+                                  }: {
+        type: "date" | "time";
+        value: string;
+        onChange: (value: string) => void;
+        placeholder: string;
+    }) {
+        return createElement("input", {
+            type,
+            value,
+            placeholder,
+            onChange: (event: any) => onChange(event.target.value),
+            style: {
+                flex: 1,
+                width: "100%",
+                border: "none",
+                outline: "none",
+                backgroundColor: "transparent",
+                color: theme.colors.text,
+                fontSize: theme.typography.fontSize.sm,
+                paddingTop: 12,
+                paddingBottom: 12,
+                fontFamily: "inherit",
+            },
+        });
+    }
 
     async function handleCreateMeeting() {
         try {
@@ -200,19 +230,12 @@ export default function PlanMeetingScreen() {
 
                         {Platform.OS === "web" ? (
                             <View style={styles.webPickerInput}>
-                                <TextInput
-                                    value={date}
-                                    style={styles.webPickerTextInput}
-                                    placeholder="YYYY-MM-DD"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    {...({
-                                        type: "date",
-                                        onChange: (event: any) =>
-                                            handleWebDateChange(event.target.value),
-                                    } as any)}
-                                />
-
-                                <Feather name="calendar" size={18} color={theme.colors.accent} />
+                                {renderWebPickerInput({
+                                    type: "date",
+                                    value: date,
+                                    onChange: handleWebDateChange,
+                                    placeholder: "YYYY-MM-DD",
+                                })}
                             </View>
                         ) : (
                             <Pressable style={styles.input} onPress={openDatePicker}>
@@ -226,19 +249,12 @@ export default function PlanMeetingScreen() {
 
                         {Platform.OS === "web" ? (
                             <View style={styles.webPickerInput}>
-                                <TextInput
-                                    value={time}
-                                    style={styles.webPickerTextInput}
-                                    placeholder="HH:MM"
-                                    placeholderTextColor={theme.colors.textMuted}
-                                    {...({
-                                        type: "time",
-                                        onChange: (event: any) =>
-                                            handleWebTimeChange(event.target.value),
-                                    } as any)}
-                                />
-
-                                <Feather name="clock" size={18} color={theme.colors.accent} />
+                                {renderWebPickerInput({
+                                    type: "time",
+                                    value: time,
+                                    onChange: handleWebTimeChange,
+                                    placeholder: "HH:MM",
+                                })}
                             </View>
                         ) : (
                             <Pressable style={styles.input} onPress={openTimePicker}>
@@ -355,7 +371,6 @@ function createStyles(theme: AppTheme) {
             borderColor: theme.colors.border,
             borderRadius: theme.radius.md,
             paddingHorizontal: 14,
-            paddingVertical: 0,
         },
 
         webPickerTextInput: {
