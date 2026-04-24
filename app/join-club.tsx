@@ -198,7 +198,7 @@ function createStyles(theme: AppTheme) {
             opacity: 0.6,
         },
         primaryButtonText: {
-            color: theme.colors.accent,
+            color: "#FFFDFC",
             fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
         },

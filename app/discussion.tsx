@@ -123,6 +123,17 @@ export default function DiscussionScreen() {
         return unsubscribe;
     }, [loadDiscussion]);
 
+    function dismissKeyboardEverywhere() {
+        Keyboard.dismiss();
+
+        if (Platform.OS === "web") {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement) {
+                activeElement.blur();
+            }
+        }
+    }
+
     async function handleAddQuestion() {
         try {
             if (!newQuestion.trim()) {
@@ -374,6 +385,351 @@ export default function DiscussionScreen() {
             ]
         );
     }
+    const screenContent = (
+        <View style={styles.screen}>
+            <View style={styles.header}>
+                <View style={styles.titleRow}>
+                    <Pressable style={styles.backButton} onPress={() => router.back()}>
+                        <Feather name="chevron-left" size={22} color={theme.colors.accent} />
+                    </Pressable>
+
+                    <View style={pageStyles.pageHeader}>
+                        <Text style={pageStyles.pageTitle}>{t("discussion.title")}</Text>
+                    </View>
+
+                    <View style={styles.headerSpacer} />
+
+                    <Pressable
+                        style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+                        onPress={() => void loadDiscussion(false)}
+                        disabled={isRefreshing}
+                    >
+                        <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
+                    </Pressable>
+                </View>
+
+                <Text style={pageStyles.pageSubtitle}>{t("discussion.subtitle")}</Text>
+            </View>
+
+
+            {isLoading ? (
+                <View style={styles.stateWrapper}>
+                    <LottieView
+                        source={require('@/assets/animations/loading-book.json')}
+                        autoPlay
+                        loop
+                        style={{ width: 200, height: 200 }}
+                    />
+                </View>
+            ) : questions.length === 0 ? (
+                <View style={styles.emptyCard}>
+                    <Text style={styles.emptyTitle}>No questions yet</Text>
+                    <Text style={styles.emptyText}>
+                        Add your first discussion question to get the conversation started.
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={questions}
+                    keyExtractor={(item) => item.id}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item, index }) => {
+                        const replies = repliesByQuestion[item.id] ?? [];
+                        const replyDraft = replyDrafts[item.id] ?? "";
+                        const isSavingReply = savingReplyForQuestionId === item.id;
+                        const isClearingReplies = clearingRepliesForQuestionId === item.id;
+                        const isRepliesExpanded = Boolean(expandedQuestions[item.id]);
+
+                        return (
+                            <View style={styles.questionCard}>
+                                <View style={styles.questionTopRow}>
+                                    <View style={styles.questionNumber}>
+                                        <Text style={styles.questionNumberText}>{index + 1}</Text>
+                                    </View>
+
+                                    <View style={styles.questionContent}>
+                                        {editingQuestionId === item.id ? (
+                                            <>
+                                                <TextInput
+                                                    value={editingQuestionText}
+                                                    onChangeText={setEditingQuestionText}
+                                                    placeholder="Edit your question"
+                                                    placeholderTextColor={theme.colors.textMuted}
+                                                    style={[styles.input, styles.textArea]}
+                                                    multiline
+                                                    textAlignVertical="top"
+                                                />
+
+                                                <View style={styles.replyActionsRow}>
+                                                    <Pressable
+                                                        style={styles.replyGhostButton}
+                                                        onPress={handleCancelEditQuestion}
+                                                    >
+                                                        <Text style={styles.replyGhostButtonText}>Cancel</Text>
+                                                    </Pressable>
+
+                                                    <Pressable
+                                                        style={[
+                                                            styles.replySmallButton,
+                                                            savingEditedQuestionId === item.id && styles.primaryButtonDisabled,
+                                                        ]}
+                                                        onPress={handleSaveEditedQuestion}
+                                                        disabled={savingEditedQuestionId === item.id}
+                                                    >
+                                                        <Text style={styles.replySmallButtonText}>
+                                                            {savingEditedQuestionId === item.id ? "Saving..." : "Save"}
+                                                        </Text>
+                                                    </Pressable>
+                                                </View>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Text style={styles.questionText}>{item.question}</Text>
+                                                <Text style={styles.questionMeta}>
+                                                    Added {formatQuestionDate(item.createdAt)}
+                                                </Text>
+
+                                                {item.createdBy === currentUserId || clubRole === "owner" ? (
+                                                    <View style={styles.replyActionsRow}>
+                                                        {item.createdBy === currentUserId ? (
+                                                            <Pressable
+                                                                style={styles.replyGhostButton}
+                                                                onPress={() => handleStartEditQuestion(item)}
+                                                            >
+                                                                <Text style={styles.replyGhostButtonText}>Edit</Text>
+                                                            </Pressable>
+                                                        ) : null}
+
+                                                        <Pressable
+                                                            style={styles.replyGhostButton}
+                                                            onPress={() => handleDeleteQuestion(item.id)}
+                                                            disabled={deletingQuestionId === item.id}
+                                                        >
+                                                            <Text style={styles.replyGhostButtonText}>
+                                                                {deletingQuestionId === item.id ? "Deleting..." : "Delete"}
+                                                            </Text>
+                                                        </Pressable>
+                                                    </View>
+                                                ) : null}
+                                            </>
+                                        )}
+                                    </View>
+                                </View>
+                                <View style={styles.repliesBlock}>
+                                    <Pressable
+                                        style={styles.repliesToggle}
+                                        onPress={() => toggleReplies(item.id)}
+                                    >
+                                        <Text style={styles.repliesToggleText}>
+                                            {t("discussion.repliesCount", { count: replies.length })}
+                                        </Text>
+
+                                        <Feather
+                                            name={isRepliesExpanded ? "chevron-up" : "chevron-down"}
+                                            size={18}
+                                            color={theme.colors.accent}
+                                        />
+                                    </Pressable>
+
+                                    {isRepliesExpanded ? (
+                                        replies.length > 0 ? (
+                                            <View style={styles.repliesSection}>
+                                                {replies.map((reply) => {
+                                                    const authorLabel =
+                                                        reply.createdBy && reply.createdBy === currentUserId
+                                                            ? t("discussion.you")
+                                                            : reply.authorName;
+
+                                                    return (
+                                                        <View key={reply.id} style={styles.replyCard}>
+                                                            <Text style={styles.replyAuthor}>{authorLabel}</Text>
+
+                                                            {editingReplyId === reply.id ? (
+                                                                <>
+                                                                    <TextInput
+                                                                        value={editingReplyText}
+                                                                        onChangeText={setEditingReplyText}
+                                                                        placeholder={t("discussion.editReplyPlaceholder")}
+                                                                        placeholderTextColor={theme.colors.textMuted}
+                                                                        style={[styles.input, styles.replyEditInput]}
+                                                                        multiline
+                                                                        textAlignVertical="top"
+                                                                    />
+
+                                                                    <View style={styles.replyActionsRow}>
+                                                                        <Pressable
+                                                                            style={styles.replyGhostButton}
+                                                                            onPress={handleCancelEditReply}
+                                                                        >
+                                                                            <Text style={styles.replyGhostButtonText}>
+                                                                                {t("common.cancel")}
+                                                                            </Text>
+                                                                        </Pressable>
+
+                                                                        <Pressable
+                                                                            style={[
+                                                                                styles.replySmallButton,
+                                                                                savingEditedReplyId === reply.id &&
+                                                                                styles.primaryButtonDisabled,
+                                                                            ]}
+                                                                            onPress={handleSaveEditedReply}
+                                                                            disabled={savingEditedReplyId === reply.id}
+                                                                        >
+                                                                            <Text style={styles.replySmallButtonText}>
+                                                                                {savingEditedReplyId === reply.id
+                                                                                    ? t("discussion.saving")
+                                                                                    : t("common.save")}
+                                                                            </Text>
+                                                                        </Pressable>
+                                                                    </View>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Text style={styles.replyText}>{reply.reply}</Text>
+                                                                    <Text style={styles.replyMeta}>
+                                                                        {t("discussion.addedOn", {
+                                                                            date: formatQuestionDate(reply.createdAt),
+                                                                        })}
+                                                                    </Text>
+
+                                                                    {reply.createdBy === currentUserId || clubRole === "owner" ? (
+                                                                        <View style={styles.replyActionsRow}>
+                                                                            {reply.createdBy === currentUserId ? (
+                                                                                <Pressable
+                                                                                    style={styles.replyGhostButton}
+                                                                                    onPress={() => handleStartEditReply(reply)}
+                                                                                >
+                                                                                    <Text style={styles.replyGhostButtonText}>
+                                                                                        {t("common.edit")}
+                                                                                    </Text>
+                                                                                </Pressable>
+                                                                            ) : null}
+
+                                                                            <Pressable
+                                                                                style={styles.replyGhostButton}
+                                                                                onPress={() => handleDeleteReply(reply.id)}
+                                                                                disabled={deletingReplyId === reply.id}
+                                                                            >
+                                                                                <Text style={styles.replyGhostButtonText}>
+                                                                                    {deletingReplyId === reply.id
+                                                                                        ? t("discussion.deleting")
+                                                                                        : t("common.delete")}
+                                                                                </Text>
+                                                                            </Pressable>
+                                                                        </View>
+                                                                    ) : null}
+                                                                </>
+                                                            )}
+                                                        </View>
+                                                    );
+                                                })}
+
+                                                {clubRole === "owner" ? (
+                                                    <Pressable
+                                                        style={styles.secondaryButton}
+                                                        onPress={() => handleClearReplies(item.id)}
+                                                        disabled={isClearingReplies}
+                                                    >
+                                                        <Text style={styles.secondaryButtonText}>
+                                                            {isClearingReplies
+                                                                ? t("discussion.clearingReplies")
+                                                                : t("discussion.clearReplies")}
+                                                        </Text>
+                                                    </Pressable>
+                                                ) : null}
+                                            </View>
+                                        ) : (
+                                            <Text style={styles.emptyText}>{t("discussion.noRepliesYet")}</Text>
+                                        )
+                                    ) : null}
+
+                                    <View style={styles.replyComposer}>
+                                        <TextInput
+                                            value={replyDraft}
+                                            onChangeText={(value) =>
+                                                setReplyDrafts((current) => ({
+                                                    ...current,
+                                                    [item.id]: value,
+                                                }))
+                                            }
+                                            placeholder={t("discussion.writeReply")}
+                                            placeholderTextColor={theme.colors.textMuted}
+                                            style={styles.replyInput}
+                                        />
+
+                                        <Pressable
+                                            style={[styles.replyButton, isSavingReply && styles.primaryButtonDisabled]}
+                                            onPress={() => handleAddReply(item.id)}
+                                            disabled={isSavingReply}
+                                        >
+                                            <Text style={styles.replyButtonText}>
+                                                {isSavingReply ? t("discussion.savingShort") : t("discussion.reply")}
+                                            </Text>
+                                        </Pressable>
+                                    </View>
+                                </View>
+                            </View>
+                        );
+                    }}
+                />
+            )}
+
+            <Modal
+                visible={isQuestionModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsQuestionModalVisible(false)}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalCard}>
+                            <Text style={styles.modalTitle}>New discussion question</Text>
+
+                            <TextInput
+                                value={newQuestion}
+                                onChangeText={setNewQuestion}
+                                placeholder="For example: What did you think of the ending?"
+                                placeholderTextColor={theme.colors.textMuted}
+                                style={[styles.input, styles.textArea]}
+                                multiline
+                                textAlignVertical="top"
+                            />
+
+                            <View style={styles.modalActions}>
+                                <Pressable
+                                    style={styles.modalSecondaryButton}
+                                    onPress={() => {
+                                        setIsQuestionModalVisible(false);
+                                        setNewQuestion("");
+                                    }}
+                                >
+                                    <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+                                </Pressable>
+
+                                <Pressable
+                                    style={[styles.primaryButton, isSavingQuestion && styles.primaryButtonDisabled]}
+                                    onPress={handleAddQuestion}
+                                    disabled={isSavingQuestion}
+                                >
+                                    <Text style={styles.primaryButtonText}>
+                                        {isSavingQuestion ? "Adding..." : "Add question"}
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+            <Pressable
+                style={styles.fabButton}
+                onPress={() => setIsQuestionModalVisible(true)}
+            >
+                <Feather name="plus" size={22} color="#FFFFFF" />
+            </Pressable>
+        </View>
+    )
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -383,351 +739,16 @@ export default function DiscussionScreen() {
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                    <View style={styles.screen}>
-                        <View style={styles.header}>
-                            <View style={styles.titleRow}>
-                                <Pressable style={styles.backButton} onPress={() => router.back()}>
-                                    <Feather name="chevron-left" size={22} color={theme.colors.accent} />
-                                </Pressable>
-
-                                <View style={pageStyles.pageHeader}>
-                                    <Text style={pageStyles.pageTitle}>{t("discussion.title")}</Text>
-                                </View>
-
-                                <View style={styles.headerSpacer} />
-
-                                <Pressable
-                                    style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
-                                    onPress={() => void loadDiscussion(false)}
-                                    disabled={isRefreshing}
-                                >
-                                    <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
-                                </Pressable>
-                            </View>
-
-                            <Text style={pageStyles.pageSubtitle}>{t("discussion.subtitle")}</Text>
-                        </View>
-
-
-                        {isLoading ? (
-                            <View style={styles.stateWrapper}>
-                                <LottieView
-                                    source={require('@/assets/animations/loading-book.json')}
-                                    autoPlay
-                                    loop
-                                    style={{ width: 200, height: 200 }}
-                                />
-                            </View>
-                        ) : questions.length === 0 ? (
-                            <View style={styles.emptyCard}>
-                                <Text style={styles.emptyTitle}>No questions yet</Text>
-                                <Text style={styles.emptyText}>
-                                    Add your first discussion question to get the conversation started.
-                                </Text>
-                            </View>
-                        ) : (
-                            <FlatList
-                                data={questions}
-                                keyExtractor={(item) => item.id}
-                                showsVerticalScrollIndicator={false}
-                                keyboardShouldPersistTaps="handled"
-                                contentContainerStyle={styles.listContent}
-                                renderItem={({ item, index }) => {
-                                    const replies = repliesByQuestion[item.id] ?? [];
-                                    const replyDraft = replyDrafts[item.id] ?? "";
-                                    const isSavingReply = savingReplyForQuestionId === item.id;
-                                    const isClearingReplies = clearingRepliesForQuestionId === item.id;
-                                    const isRepliesExpanded = Boolean(expandedQuestions[item.id]);
-
-                                    return (
-                                        <View style={styles.questionCard}>
-                                            <View style={styles.questionTopRow}>
-                                                <View style={styles.questionNumber}>
-                                                    <Text style={styles.questionNumberText}>{index + 1}</Text>
-                                                </View>
-
-                                                <View style={styles.questionContent}>
-                                                    {editingQuestionId === item.id ? (
-                                                        <>
-                                                            <TextInput
-                                                                value={editingQuestionText}
-                                                                onChangeText={setEditingQuestionText}
-                                                                placeholder="Edit your question"
-                                                                placeholderTextColor={theme.colors.textMuted}
-                                                                style={[styles.input, styles.textArea]}
-                                                                multiline
-                                                                textAlignVertical="top"
-                                                            />
-
-                                                            <View style={styles.replyActionsRow}>
-                                                                <Pressable
-                                                                    style={styles.replyGhostButton}
-                                                                    onPress={handleCancelEditQuestion}
-                                                                >
-                                                                    <Text style={styles.replyGhostButtonText}>Cancel</Text>
-                                                                </Pressable>
-
-                                                                <Pressable
-                                                                    style={[
-                                                                        styles.replySmallButton,
-                                                                        savingEditedQuestionId === item.id && styles.primaryButtonDisabled,
-                                                                    ]}
-                                                                    onPress={handleSaveEditedQuestion}
-                                                                    disabled={savingEditedQuestionId === item.id}
-                                                                >
-                                                                    <Text style={styles.replySmallButtonText}>
-                                                                        {savingEditedQuestionId === item.id ? "Saving..." : "Save"}
-                                                                    </Text>
-                                                                </Pressable>
-                                                            </View>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Text style={styles.questionText}>{item.question}</Text>
-                                                            <Text style={styles.questionMeta}>
-                                                                Added {formatQuestionDate(item.createdAt)}
-                                                            </Text>
-
-                                                            {item.createdBy === currentUserId || clubRole === "owner" ? (
-                                                                <View style={styles.replyActionsRow}>
-                                                                    {item.createdBy === currentUserId ? (
-                                                                        <Pressable
-                                                                            style={styles.replyGhostButton}
-                                                                            onPress={() => handleStartEditQuestion(item)}
-                                                                        >
-                                                                            <Text style={styles.replyGhostButtonText}>Edit</Text>
-                                                                        </Pressable>
-                                                                    ) : null}
-
-                                                                    <Pressable
-                                                                        style={styles.replyGhostButton}
-                                                                        onPress={() => handleDeleteQuestion(item.id)}
-                                                                        disabled={deletingQuestionId === item.id}
-                                                                    >
-                                                                        <Text style={styles.replyGhostButtonText}>
-                                                                            {deletingQuestionId === item.id ? "Deleting..." : "Delete"}
-                                                                        </Text>
-                                                                    </Pressable>
-                                                                </View>
-                                                            ) : null}
-                                                        </>
-                                                    )}
-                                                </View>
-                                            </View>
-                                            <View style={styles.repliesBlock}>
-                                                <Pressable
-                                                    style={styles.repliesToggle}
-                                                    onPress={() => toggleReplies(item.id)}
-                                                >
-                                                    <Text style={styles.repliesToggleText}>
-                                                        {t("discussion.repliesCount", { count: replies.length })}
-                                                    </Text>
-
-                                                    <Feather
-                                                        name={isRepliesExpanded ? "chevron-up" : "chevron-down"}
-                                                        size={18}
-                                                        color={theme.colors.accent}
-                                                    />
-                                                </Pressable>
-
-                                                {isRepliesExpanded ? (
-                                                    replies.length > 0 ? (
-                                                        <View style={styles.repliesSection}>
-                                                            {replies.map((reply) => {
-                                                                const authorLabel =
-                                                                    reply.createdBy && reply.createdBy === currentUserId
-                                                                        ? t("discussion.you")
-                                                                        : reply.authorName;
-
-                                                                return (
-                                                                    <View key={reply.id} style={styles.replyCard}>
-                                                                        <Text style={styles.replyAuthor}>{authorLabel}</Text>
-
-                                                                        {editingReplyId === reply.id ? (
-                                                                            <>
-                                                                                <TextInput
-                                                                                    value={editingReplyText}
-                                                                                    onChangeText={setEditingReplyText}
-                                                                                    placeholder={t("discussion.editReplyPlaceholder")}
-                                                                                    placeholderTextColor={theme.colors.textMuted}
-                                                                                    style={[styles.input, styles.replyEditInput]}
-                                                                                    multiline
-                                                                                    textAlignVertical="top"
-                                                                                />
-
-                                                                                <View style={styles.replyActionsRow}>
-                                                                                    <Pressable
-                                                                                        style={styles.replyGhostButton}
-                                                                                        onPress={handleCancelEditReply}
-                                                                                    >
-                                                                                        <Text style={styles.replyGhostButtonText}>
-                                                                                            {t("common.cancel")}
-                                                                                        </Text>
-                                                                                    </Pressable>
-
-                                                                                    <Pressable
-                                                                                        style={[
-                                                                                            styles.replySmallButton,
-                                                                                            savingEditedReplyId === reply.id &&
-                                                                                            styles.primaryButtonDisabled,
-                                                                                        ]}
-                                                                                        onPress={handleSaveEditedReply}
-                                                                                        disabled={savingEditedReplyId === reply.id}
-                                                                                    >
-                                                                                        <Text style={styles.replySmallButtonText}>
-                                                                                            {savingEditedReplyId === reply.id
-                                                                                                ? t("discussion.saving")
-                                                                                                : t("common.save")}
-                                                                                        </Text>
-                                                                                    </Pressable>
-                                                                                </View>
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <Text style={styles.replyText}>{reply.reply}</Text>
-                                                                                <Text style={styles.replyMeta}>
-                                                                                    {t("discussion.addedOn", {
-                                                                                        date: formatQuestionDate(reply.createdAt),
-                                                                                    })}
-                                                                                </Text>
-
-                                                                                {reply.createdBy === currentUserId || clubRole === "owner" ? (
-                                                                                    <View style={styles.replyActionsRow}>
-                                                                                        {reply.createdBy === currentUserId ? (
-                                                                                            <Pressable
-                                                                                                style={styles.replyGhostButton}
-                                                                                                onPress={() => handleStartEditReply(reply)}
-                                                                                            >
-                                                                                                <Text style={styles.replyGhostButtonText}>
-                                                                                                    {t("common.edit")}
-                                                                                                </Text>
-                                                                                            </Pressable>
-                                                                                        ) : null}
-
-                                                                                        <Pressable
-                                                                                            style={styles.replyGhostButton}
-                                                                                            onPress={() => handleDeleteReply(reply.id)}
-                                                                                            disabled={deletingReplyId === reply.id}
-                                                                                        >
-                                                                                            <Text style={styles.replyGhostButtonText}>
-                                                                                                {deletingReplyId === reply.id
-                                                                                                    ? t("discussion.deleting")
-                                                                                                    : t("common.delete")}
-                                                                                            </Text>
-                                                                                        </Pressable>
-                                                                                    </View>
-                                                                                ) : null}
-                                                                            </>
-                                                                        )}
-                                                                    </View>
-                                                                );
-                                                            })}
-
-                                                            {clubRole === "owner" ? (
-                                                                <Pressable
-                                                                    style={styles.secondaryButton}
-                                                                    onPress={() => handleClearReplies(item.id)}
-                                                                    disabled={isClearingReplies}
-                                                                >
-                                                                    <Text style={styles.secondaryButtonText}>
-                                                                        {isClearingReplies
-                                                                            ? t("discussion.clearingReplies")
-                                                                            : t("discussion.clearReplies")}
-                                                                    </Text>
-                                                                </Pressable>
-                                                            ) : null}
-                                                        </View>
-                                                    ) : (
-                                                        <Text style={styles.emptyText}>{t("discussion.noRepliesYet")}</Text>
-                                                    )
-                                                ) : null}
-
-                                                <View style={styles.replyComposer}>
-                                                    <TextInput
-                                                        value={replyDraft}
-                                                        onChangeText={(value) =>
-                                                            setReplyDrafts((current) => ({
-                                                                ...current,
-                                                                [item.id]: value,
-                                                            }))
-                                                        }
-                                                        placeholder={t("discussion.writeReply")}
-                                                        placeholderTextColor={theme.colors.textMuted}
-                                                        style={styles.replyInput}
-                                                    />
-
-                                                    <Pressable
-                                                        style={[styles.replyButton, isSavingReply && styles.primaryButtonDisabled]}
-                                                        onPress={() => handleAddReply(item.id)}
-                                                        disabled={isSavingReply}
-                                                    >
-                                                        <Text style={styles.replyButtonText}>
-                                                            {isSavingReply ? t("discussion.savingShort") : t("discussion.reply")}
-                                                        </Text>
-                                                    </Pressable>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    );
-                                }}
-                            />
-                        )}
-
-                        <Modal
-                            visible={isQuestionModalVisible}
-                            transparent
-                            animationType="fade"
-                            onRequestClose={() => setIsQuestionModalVisible(false)}
-                        >
-                            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-                                <View style={styles.modalOverlay}>
-                                    <View style={styles.modalCard}>
-                                        <Text style={styles.modalTitle}>New discussion question</Text>
-
-                                        <TextInput
-                                            value={newQuestion}
-                                            onChangeText={setNewQuestion}
-                                            placeholder="For example: What did you think of the ending?"
-                                            placeholderTextColor={theme.colors.textMuted}
-                                            style={[styles.input, styles.textArea]}
-                                            multiline
-                                            textAlignVertical="top"
-                                        />
-
-                                        <View style={styles.modalActions}>
-                                            <Pressable
-                                                style={styles.modalSecondaryButton}
-                                                onPress={() => {
-                                                    setIsQuestionModalVisible(false);
-                                                    setNewQuestion("");
-                                                }}
-                                            >
-                                                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
-                                            </Pressable>
-
-                                            <Pressable
-                                                style={[styles.primaryButton, isSavingQuestion && styles.primaryButtonDisabled]}
-                                                onPress={handleAddQuestion}
-                                                disabled={isSavingQuestion}
-                                            >
-                                                <Text style={styles.primaryButtonText}>
-                                                    {isSavingQuestion ? "Adding..." : "Add question"}
-                                                </Text>
-                                            </Pressable>
-                                        </View>
-                                    </View>
-                                </View>
-                            </TouchableWithoutFeedback>
-                        </Modal>
-                        <Pressable
-                            style={styles.fabButton}
-                            onPress={() => setIsQuestionModalVisible(true)}
-                        >
-                            <Feather name="plus" size={22} color="#FFFFFF" />
-                        </Pressable>
-                    </View>
-                </TouchableWithoutFeedback>
+                {Platform.OS === "web" ? (
+                    screenContent
+                ) : (
+                    <TouchableWithoutFeedback
+                        onPress={dismissKeyboardEverywhere}
+                        accessible={false}
+                    >
+                        {screenContent}
+                    </TouchableWithoutFeedback>
+                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
