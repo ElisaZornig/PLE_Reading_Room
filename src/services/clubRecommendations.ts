@@ -744,7 +744,108 @@ async function buildMemberProfiles(context: ClubContext) {
         }
     }
 
+    for (const member of memberProfiles.values()) {
+        normalizeMemberScoreMap(member.subjectScores, 10);
+        normalizeMemberScoreMap(member.languageScores, 6);
+    }
+
     return memberProfiles;
+}
+function normalizeMemberScoreMap(map: Map<string, number>, maxTotalScore = 10) {
+    const total = [...map.values()].reduce((sum, value) => sum + Math.max(0, value), 0);
+
+    if (total <= maxTotalScore || total === 0) {
+        return;
+    }
+
+    const factor = maxTotalScore / total;
+
+    for (const [key, value] of map.entries()) {
+        map.set(key, value * factor);
+    }
+}
+function normalizeText(value: string) {
+    return value
+        .toLowerCase()
+        .replace(/[’']/g, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function romanToNumber(value: string) {
+    const normalized = value.toUpperCase();
+
+    const romanMap: Record<string, number> = {
+        I: 1,
+        II: 2,
+        III: 3,
+        IV: 4,
+        V: 5,
+        VI: 6,
+        VII: 7,
+        VIII: 8,
+        IX: 9,
+        X: 10,
+    };
+
+    return romanMap[normalized] ?? null;
+}
+
+function extractSeriesNumberFromText(value: string) {
+    const text = normalizeText(value);
+
+    const numericPatterns = [
+        /(?:book|volume|vol\.?|part|deel)\s*(\d+)/i,
+        /(?:book|volume|vol\.?|part|deel)\s*#\s*(\d+)/i,
+        /#\s*(\d+)/i,
+        /\((?:[^)]*?)(?:book|volume|vol\.?|part|deel|#)\s*(\d+)(?:[^)]*?)\)/i,
+    ];
+
+    for (const pattern of numericPatterns) {
+        const match = text.match(pattern);
+        const number = match?.[1] ? Number(match[1]) : null;
+
+        if (number && number > 1) {
+            return number;
+        }
+    }
+
+    const romanPatterns = [
+        /(?:book|volume|vol\.?|part|deel)\s+(ii|iii|iv|v|vi|vii|viii|ix|x)\b/i,
+        /\b(ii|iii|iv|v|vi|vii|viii|ix|x)\b\s*\)/i,
+    ];
+
+    for (const pattern of romanPatterns) {
+        const match = text.match(pattern);
+        const romanNumber = match?.[1] ? romanToNumber(match[1]) : null;
+
+        if (romanNumber && romanNumber > 1) {
+            return romanNumber;
+        }
+    }
+
+    return null;
+}
+
+function isLikelyLaterSeriesBook(input: {
+    title: string;
+    series?: string[];
+}) {
+    const titleSeriesNumber = extractSeriesNumberFromText(input.title);
+
+    if (titleSeriesNumber && titleSeriesNumber > 1) {
+        return true;
+    }
+
+    for (const seriesValue of input.series ?? []) {
+        const seriesNumber = extractSeriesNumberFromText(seriesValue);
+
+        if (seriesNumber && seriesNumber > 1) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function buildClubSubjectScores(
@@ -1222,6 +1323,11 @@ export async function generateClubRecommendations(input: {
                 continue;
             }
 
+            if (isLikelyLaterSeriesBook({ title })) {
+                debugLog("excluded later series book", title);
+                continue;
+            }
+
             if (analysis.existingWorkIds.has(openLibraryWorkId)) {
                 continue;
             }
@@ -1357,6 +1463,7 @@ export async function generateClubRecommendations(input: {
             } satisfies ClubRecommendation;
         })
         .filter((item) => item.score > 0)
+        .filter((item) => !isLikelyLaterSeriesBook({ title: item.title }))
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
 
