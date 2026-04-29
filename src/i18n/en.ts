@@ -309,6 +309,12 @@ const en = {
         clearRepliesConfirm: "Clear",
         clearRepliesErrorTitle: "Clear replies error",
         clearRepliesErrorMessage: "Something went wrong while clearing replies.",
+        hiddenReplyTitle: "Reply hidden",
+        hiddenReplyText: "Reach %{progress}% of the book to unlock this reply.",
+        newQuestionTitle: "New discussion question",
+        newQuestionPlaceholder: "For example: What did you think of the ending?",
+        addQuestion: "Add question",
+        addingQuestion: "Adding...",
     },
     planMeeting: {
         title: "Plan a meeting",

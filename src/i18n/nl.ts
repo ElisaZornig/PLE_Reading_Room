@@ -306,6 +306,12 @@ const nl = {
         clearRepliesConfirm: "Wissen",
         clearRepliesErrorTitle: "Fout bij wissen reacties",
         clearRepliesErrorMessage: "Er ging iets mis bij het wissen van de reacties.",
+        hiddenReplyTitle: "Reactie verborgen",
+        hiddenReplyText: "Lees tot %{progress}% van het boek om deze reactie te bekijken.",
+        newQuestionTitle: "Nieuwe discussie vraag",
+        newQuestionPlaceholder: "Bijvoorbeeld: wat vond je van het einde?",
+        addQuestion: "Vraag toevoegen",
+        addingQuestion: "Toevoegen...",
     },
     planMeeting: {
         title: "Meeting plannen",

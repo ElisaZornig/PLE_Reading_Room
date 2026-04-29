@@ -12,8 +12,8 @@ const deviceLanguage = getLocales()[0]?.languageCode ?? "nl";
 
 i18n.defaultLocale = "en";
 i18n.enableFallback = true;
-// i18n.locale = deviceLanguage;
-i18n.locale = "en"
+i18n.locale = deviceLanguage;
+// i18n.locale = "en"
 
 export const t = (key: string, options?: Record<string, unknown>) =>
     i18n.t(key, options) as string;

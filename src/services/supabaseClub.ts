@@ -569,6 +569,7 @@ export type DiscussionReply = {
     createdAt: string;
     createdBy: string | null;
     authorName: string;
+    progressAtReply: number;
 };
 
 export async function fetchDiscussionRepliesForQuestion(input: {
@@ -582,7 +583,7 @@ export async function fetchDiscussionRepliesForQuestion(input: {
 
     const { data, error } = await supabase
         .from("discussion_replies")
-        .select("id, question_id, club_id, reply, created_at, created_by")
+        .select("id, question_id, club_id, reply, created_at, created_by, progress_at_reply")
         .eq("question_id", questionId)
         .order("created_at", { ascending: true });
 
@@ -626,7 +627,10 @@ export async function fetchDiscussionRepliesForQuestion(input: {
         reply: item.reply,
         createdAt: item.created_at,
         createdBy: item.created_by,
-        authorName: item.created_by ? nameMap[item.created_by] ?? "Club member" : "Club member",
+        authorName: item.created_by
+            ? nameMap[item.created_by] ?? "Club member"
+            : "Club member",
+        progressAtReply: item.progress_at_reply ?? 0,
     }));
 }
 
@@ -634,12 +638,17 @@ export async function createDiscussionReplyInSupabase(input: {
     questionId: string;
     clubId: string;
     reply: string;
+    progressAtReply?: number;
 }) {
     const userId = await getCurrentSupabaseUserId();
 
     const questionId = input.questionId.trim();
     const clubId = input.clubId.trim();
     const reply = input.reply.trim();
+    const progressAtReply = Math.max(
+        0,
+        Math.min(100, Math.round(input.progressAtReply ?? 0))
+    );
 
     if (!questionId) {
         throw new Error("No question found.");
@@ -660,6 +669,7 @@ export async function createDiscussionReplyInSupabase(input: {
             club_id: clubId,
             reply,
             created_by: userId,
+            progress_at_reply: progressAtReply,
         })
         .select("id")
         .single();
