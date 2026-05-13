@@ -1,32 +1,56 @@
-import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { Pressable, StyleSheet } from "react-native";
+
+import { AvatarBubble } from "@/src/components/AvatarBubble";
 import { supabase } from "@/src/services/supabase";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
-import { showAppConfirm } from "@/src/utils/appAlert";
+
+type ProfileButtonData = {
+    display_name: string | null;
+    avatar_id: string | null;
+    avatar_background_color: string | null;
+};
 
 export function ProfileButton() {
     const theme = useAppTheme();
     const styles = createStyles(theme);
 
-    async function handlePress() {
-        const confirmed = await showAppConfirm({
-            title: "Account",
-            message: "Wil je uitloggen?",
-            confirmText: "Uitloggen",
-            cancelText: "Annuleren",
-        });
+    const [profile, setProfile] = useState<ProfileButtonData | null>(null);
 
-        if (!confirmed) return;
+    async function fetchProfileButtonData() {
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
-        await supabase.auth.signOut();
-        router.replace("/auth");
+        if (!user) return;
+
+        const { data, error } = await supabase
+            .from("profiles")
+            .select("display_name, avatar_id, avatar_background_color")
+            .eq("id", user.id)
+            .single();
+
+        if (!error && data) {
+            setProfile(data);
+        }
     }
 
+    useFocusEffect(
+        useCallback(() => {
+            void fetchProfileButtonData();
+        }, [])
+    );
+
     return (
-        <Pressable style={styles.button} onPress={handlePress}>
-            <Feather name="user" size={20} color={theme.colors.text} />
+        <Pressable style={styles.button} onPress={() => router.push("/profile")}>
+            <AvatarBubble
+                avatarId={profile?.avatar_id}
+                backgroundColor={profile?.avatar_background_color}
+                name={profile?.display_name}
+                size={42}
+            />
         </Pressable>
     );
 }

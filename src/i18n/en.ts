@@ -400,6 +400,78 @@ const en = {
             setCurrentMessage: "Something went wrong while setting the current book.",
         },
     },
+    profile: {
+        title: "Profile",
+        loading: "Loading profile...",
+        defaultName: "Reader",
+        subtitle: "Your book club profile",
+        editAvatar: "Edit avatar",
+
+        readingProfile: "Reading profile",
+        favoriteGenres: "Favourite genres",
+        preferredLanguages: "Preferred languages",
+        notSetYet: "Not set yet",
+        recommendationHint:
+            "Your reading profile helps your book club get better recommendations.",
+
+        appPreferences: "App preferences",
+        appearance: "Appearance",
+        system: "System",
+        light: "Light",
+        dark: "Dark",
+
+        account: "Account",
+        accountSettings: "Account settings",
+        email: "Email",
+        logout: "Log out",
+        passwordHidden: "••••••••",
+        name: "Name",
+        password: "Password"
+    },
+
+    profilePreferences: {
+        title: "Preferences",
+        loading: "Loading preferences...",
+        favoriteGenres: "Favourite genres",
+        preferredLanguages: "Preferred languages",
+        appearance: "Appearance",
+        system: "System",
+        light: "Light",
+        dark: "Dark",
+        save: "Save",
+        saving: "Saving...",
+        errorTitle: "Could not save preferences",
+        errorMessage: "Something went wrong while saving your preferences.",
+    },
+
+    profileAccount: {
+        title: "Account settings",
+        loading: "Loading account...",
+
+        displayName: "Name",
+        displayNamePlaceholder: "Enter your name",
+        saveName: "Save name",
+
+        changeEmail: "Change email",
+        email: "Email",
+        emailPlaceholder: "Enter your new email address",
+        emailInfo:
+            "After changing your email address, you may need to confirm it in your inbox.",
+
+        changePassword: "Change password",
+        password: "New password",
+        passwordPlaceholder: "Enter your new password",
+        passwordInfo: "Choose a secure password of at least 6 characters.",
+
+        saving: "Saving...",
+        savedTitle: "Saved",
+        savedNameMessage: "Your name has been updated.",
+        savedEmailMessage: "Check your inbox to confirm your new email address.",
+        savedPasswordMessage: "Your password has been updated.",
+
+        errorTitle: "Could not update account",
+        passwordTooShort: "Your password must be at least 6 characters.",
+    },
 
 
 

@@ -23,6 +23,7 @@ import { useAppTheme } from "@/src/theme/useAppTheme";
 import { showAppAlert, showAppConfirm } from "@/src/utils/appAlert";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
+import {AvatarBubble} from "@/src/components/AvatarBubble";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -442,17 +443,17 @@ export default function ClubScreen() {
                                 {memberProgress.slice(0, 4).map((member, index) => (
                                     <View
                                         key={member.userId}
-                                        style={[
-                                            styles.memberAvatarSmall,
-                                            {
-                                                marginLeft: index === 0 ? 0 : -10,
-                                                zIndex: 10 - index,
-                                            },
-                                        ]}
+                                        style={{
+                                            marginLeft: index === 0 ? 0 : -10,
+                                            zIndex: 10 - index,
+                                        }}
                                     >
-                                        <Text style={styles.memberAvatarSmallText}>
-                                            {getInitials(member.displayName)}
-                                        </Text>
+                                        <AvatarBubble
+                                            avatarId={member.avatarId}
+                                            backgroundColor={member.avatarBackgroundColor}
+                                            name={member.displayName}
+                                            size={28}
+                                        />
                                     </View>
                                 ))}
                             </View>
@@ -486,18 +487,12 @@ export default function ClubScreen() {
                                     <View key={member.userId} style={styles.memberRow}>
                                         <View style={styles.memberTopRow}>
                                             <View style={styles.memberIdentity}>
-                                                {member.avatarUrl ? (
-                                                    <Image
-                                                        source={{ uri: member.avatarUrl }}
-                                                        style={styles.memberAvatar}
-                                                    />
-                                                ) : (
-                                                    <View style={styles.memberAvatarFallback}>
-                                                        <Text style={styles.memberAvatarFallbackText}>
-                                                            {getInitials(member.displayName)}
-                                                        </Text>
-                                                    </View>
-                                                )}
+                                                <AvatarBubble
+                                                    avatarId={member.avatarId}
+                                                    backgroundColor={member.avatarBackgroundColor}
+                                                    name={member.displayName}
+                                                    size={40}
+                                                />
 
                                                 <View style={styles.memberTextWrap}>
                                                     <View style={styles.memberNameWrap}>

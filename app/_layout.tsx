@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../src/services/supabase";
+import {AppThemeProvider} from "@/src/theme/AppThemeProvider";
 
 export default function RootLayout() {
     const scheme = useColorScheme();
@@ -49,15 +50,18 @@ export default function RootLayout() {
     }
 
     return (
-        <SafeAreaProvider>
-            <StatusBar style={scheme === "dark" ? "light" : "dark"} />
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="add-book" />
-                <Stack.Screen name="book/[id]" />
-                <Stack.Screen name="auth" />
-                <Stack.Screen name="sign-up" />
-            </Stack>
-        </SafeAreaProvider>
+        <AppThemeProvider>
+            <SafeAreaProvider>
+                <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+                <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="add-book" />
+                    <Stack.Screen name="book/[id]" />
+                    <Stack.Screen name="profile" />
+                    <Stack.Screen name="auth" />
+                    <Stack.Screen name="sign-up" />
+                </Stack>
+            </SafeAreaProvider>
+        </AppThemeProvider>
     );
 }

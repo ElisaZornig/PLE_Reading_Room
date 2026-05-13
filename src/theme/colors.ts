@@ -6,7 +6,7 @@ export const colors = {
         text: "#2B1F1D",
         textMuted: "#7B6A67",
         border: "#E7D9D4",
-        accent: "#E58F7C",
+        accent: "#d8725d",
         accentSoft: "#F6D3CB",
         success: "#5FA56B",
         successSoft: "#DDEEDF",
@@ -32,3 +32,51 @@ export const colors = {
         tabInactive: "#B89E98",
     },
 };
+
+// export const colors = {
+//     light: {
+//         background: "#F5F1EA",
+//         surface: "#FFFCF6",
+//         card: "#FFFFFF",
+//
+//         text: "#1F1A14",
+//         textMuted: "#7A6F62",
+//
+//         border: "#E6D8C7",
+//
+//         accent: "#E89A1E",
+//         accentSoft: "#FFE3A3",
+//
+//         success: "#7B8235",
+//         successSoft: "#E8EDCF",
+//
+//         danger: "#B42318",
+//         dangerSoft: "#FFF1EE",
+//         dangerBorder: "#F0B8AA",
+//
+//         tabInactive: "#9A8C7B",
+//     },
+//
+//     dark: {
+//         background: "#0F0E0C",
+//         surface: "#181512",
+//         card: "#241F18",
+//
+//         text: "#FFF8EA",
+//         textMuted: "#CFC2A6",
+//
+//         border: "#332D22",
+//
+//         accent: "#F4A51C",
+//         accentSoft: "#3A2A12",
+//
+//         success: "#A5AF5A",
+//         successSoft: "#263018",
+//
+//         danger: "#EF7A52",
+//         dangerSoft: "#3A2115",
+//         dangerBorder: "#663222",
+//
+//         tabInactive: "#9F8F70",
+//     },
+// };

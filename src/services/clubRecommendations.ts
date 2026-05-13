@@ -29,9 +29,24 @@ export type ClubRecommendation = {
 };
 
 type BookRecord = {
+    id?: string | null;
+    title?: string | null;
+    author?: string | null;
+    cover_url?: string | null;
     genres: string[] | null;
     languages: string[] | null;
     open_library_work_id?: string | null;
+};
+
+type TbrCandidateAggregate = {
+    openLibraryWorkId: string;
+    title: string;
+    author: string;
+    cover: string;
+    firstPublishYear: number | null;
+    matchedSubjects: Set<string>;
+    matchedLanguages: Set<string>;
+    tbrMemberCount: number;
 };
 
 type UserBookWithMetadata = {
@@ -104,6 +119,7 @@ type ClubAnalysis = {
     languageScoreMap: Map<string, ScoreMeta>;
     preferredYear: number | null;
     existingWorkIds: Set<string>;
+    tbrCandidates: TbrCandidateAggregate[];
 };
 
 type SearchStrategy = {
@@ -122,6 +138,7 @@ type CandidateAggregate = {
     matchedSubjects: Set<string>;
     matchedLanguages: Set<string>;
     strategyWeight: number;
+    tbrMemberCount: number;
 };
 
 function normalizeDescription(
@@ -593,10 +610,14 @@ async function loadClubContext(clubId: string): Promise<ClubContext> {
           user_id,
           status,
           books (
-            genres,
-            languages,
-            open_library_work_id
-          )
+              id,
+              title,
+              author,
+              cover_url,
+              genres,
+              languages,
+              open_library_work_id
+            )
         `)
                 .in("user_id", userIds),
             supabase
@@ -944,6 +965,120 @@ function buildClubLanguageScores(
     };
 }
 
+async function buildTbrCandidates(
+    context: ClubContext,
+    analysisInput: {
+        subjectScoreMap: Map<string, ScoreMeta>;
+        languageScoreMap: Map<string, ScoreMeta>;
+        existingWorkIds: Set<string>;
+    }
+) {
+    const tbrCandidateMap = new Map<string, TbrCandidateAggregate>();
+    const clubSubjectSet = new Set(analysisInput.subjectScoreMap.keys());
+    const preferredLanguageSet = new Set(
+        analysisInput.languageScoreMap.size > 0
+            ? [...analysisInput.languageScoreMap.keys()]
+            : [DEFAULT_LANGUAGE]
+    );
+
+    for (const row of context.userBooks) {
+        if (row.status !== "toRead") {
+            continue;
+        }
+
+        const book = getBooksObject(row.books);
+
+        if (!book) {
+            continue;
+        }
+
+        const normalizedWorkId = normalizeOpenLibraryWorkId(
+            book.open_library_work_id
+        );
+
+        if (!normalizedWorkId) {
+            continue;
+        }
+
+        // Strenger dan alleen "gelezen": als iemand hem al finished/reading/dnf heeft,
+        // komt hij niet terug als nieuwe optie.
+        if (analysisInput.existingWorkIds.has(normalizedWorkId)) {
+            continue;
+        }
+
+        const title = book.title ?? "Untitled";
+
+        if (looksLikeExcludedFormat(title)) {
+            continue;
+        }
+
+        const workDetails = await fetchWorkDetails(normalizedWorkId);
+
+        if (!isPlausibleYear(workDetails.firstPublishYear)) {
+            continue;
+        }
+
+        if (!isValidRecommendationYear(workDetails.firstPublishYear)) {
+            continue;
+        }
+
+        const subjects =
+            workDetails.subjects.length > 0
+                ? workDetails.subjects
+                : fallbackSubjectsFromGenres(book.genres);
+
+        if (hasExcludedContentSubjects(subjects)) {
+            continue;
+        }
+
+        const matchedSubjects = subjects.filter((subject) =>
+            clubSubjectSet.has(subject)
+        );
+
+        // Belangrijk: TBR mag alleen mee als minstens één genre/subject past.
+        if (matchedSubjects.length === 0) {
+            continue;
+        }
+
+        const bookLanguages = (book.languages ?? [])
+            .map(normalizeLanguage)
+            .filter(Boolean);
+
+        const matchedLanguages = bookLanguages.filter((language) =>
+            preferredLanguageSet.has(language)
+        );
+
+        let aggregate = tbrCandidateMap.get(normalizedWorkId);
+
+        if (!aggregate) {
+            aggregate = {
+                openLibraryWorkId: normalizedWorkId,
+                title,
+                author: book.author ?? "Unknown author",
+                cover: book.cover_url ?? "",
+                firstPublishYear: workDetails.firstPublishYear,
+                matchedSubjects: new Set(),
+                matchedLanguages: new Set(),
+                tbrMemberCount: 0,
+            };
+
+            tbrCandidateMap.set(normalizedWorkId, aggregate);
+        }
+
+        for (const subject of matchedSubjects) {
+            aggregate.matchedSubjects.add(subject);
+        }
+
+        for (const language of matchedLanguages) {
+            aggregate.matchedLanguages.add(language);
+        }
+
+        aggregate.tbrMemberCount += 1;
+    }
+
+    return [...tbrCandidateMap.values()];
+}
+
 async function computeClubAnalysis(clubId: string): Promise<ClubAnalysis> {
     const context = await loadClubContext(clubId);
 
@@ -953,6 +1088,7 @@ async function computeClubAnalysis(clubId: string): Promise<ClubAnalysis> {
             memberCount: 0,
             subjectScores: [],
             languageScores: [],
+            tbrCandidates: [],
             subjectScoreMap: new Map(),
             languageScoreMap: new Map(),
             preferredYear: null,
@@ -967,6 +1103,12 @@ async function computeClubAnalysis(clubId: string): Promise<ClubAnalysis> {
     );
     const { languageScores, languageScoreMap } =
         buildClubLanguageScores(memberProfiles);
+
+    const tbrCandidates = await buildTbrCandidates(context, {
+        subjectScoreMap,
+        languageScoreMap,
+        existingWorkIds: context.existingWorkIds,
+    });
 
     const allYears = [...memberProfiles.values()].flatMap((member) =>
         member.readYears.filter(isPlausibleYear)
@@ -995,6 +1137,7 @@ async function computeClubAnalysis(clubId: string): Promise<ClubAnalysis> {
         languageScoreMap,
         preferredYear,
         existingWorkIds: context.existingWorkIds,
+        tbrCandidates,
     };
 }
 
@@ -1216,6 +1359,7 @@ function buildRecommendationReason(
         matchedSubjects: string[];
         matchedLanguages: string[];
         firstPublishYear: number | null;
+        tbrMemberCount?: number;
     },
     analysis: ClubAnalysis
 ) {
@@ -1227,6 +1371,13 @@ function buildRecommendationReason(
 
     const primarySubjects = sortedSubjects.slice(0, 2);
     const reasonParts: string[] = [];
+    if (candidate.tbrMemberCount && candidate.tbrMemberCount > 0) {
+        reasonParts.push(
+            candidate.tbrMemberCount === 1
+                ? "This book is already on 1 member's TBR."
+                : `This book is already on ${candidate.tbrMemberCount} members' TBRs.`
+        );
+    }
 
     if (primarySubjects.length >= 2) {
         reasonParts.push(
@@ -1308,6 +1459,49 @@ export async function generateClubRecommendations(input: {
 
     const candidateMap = new Map<string, CandidateAggregate>();
 
+    for (const tbrCandidate of analysis.tbrCandidates) {
+        if (excludedWorkIds.has(tbrCandidate.openLibraryWorkId)) {
+            continue;
+        }
+
+        if (analysis.existingWorkIds.has(tbrCandidate.openLibraryWorkId)) {
+            continue;
+        }
+
+        let aggregate = candidateMap.get(tbrCandidate.openLibraryWorkId);
+
+        if (!aggregate) {
+            aggregate = {
+                openLibraryWorkId: tbrCandidate.openLibraryWorkId,
+                title: tbrCandidate.title,
+                author: tbrCandidate.author,
+                cover: tbrCandidate.cover,
+                firstPublishYear: tbrCandidate.firstPublishYear,
+                matchedSubjects: new Set(),
+                matchedLanguages: new Set(),
+                strategyWeight: 0,
+                tbrMemberCount: 0,
+            };
+
+            candidateMap.set(tbrCandidate.openLibraryWorkId, aggregate);
+        }
+
+        for (const subject of tbrCandidate.matchedSubjects) {
+            aggregate.matchedSubjects.add(subject);
+        }
+
+        for (const language of tbrCandidate.matchedLanguages) {
+            aggregate.matchedLanguages.add(language);
+        }
+
+        aggregate.tbrMemberCount += tbrCandidate.tbrMemberCount;
+
+        // TBR boost: een boek dat al op iemands lijst staat is extra relevant,
+        // maar alleen nadat het genre al matcht.
+        aggregate.strategyWeight +=
+            0.85 + Math.min(tbrCandidate.tbrMemberCount, 3) * 0.35;
+    }
+
     for (const strategy of strategies) {
 
         const docs = await fetchSearchCandidates(strategy, 40);
@@ -1382,6 +1576,7 @@ export async function generateClubRecommendations(input: {
                     matchedSubjects: new Set(),
                     matchedLanguages: new Set(),
                     strategyWeight: 0,
+                    tbrMemberCount: 0,
                 };
 
                 candidateMap.set(openLibraryWorkId, aggregate);
@@ -1456,6 +1651,7 @@ export async function generateClubRecommendations(input: {
                         matchedSubjects,
                         matchedLanguages,
                         firstPublishYear: candidate.firstPublishYear,
+                        tbrMemberCount: candidate.tbrMemberCount,
                     },
                     analysis
                 ),

@@ -397,6 +397,78 @@ const nl = {
             setCurrentMessage: "Er ging iets mis bij het instellen van het huidige boek.",
         },
     },
+    profile: {
+        title: "Profiel",
+        loading: "Profiel laden...",
+        defaultName: "Lezer",
+        subtitle: "Jouw boekenclub-profiel",
+        editAvatar: "Avatar aanpassen",
+
+        readingProfile: "Leesprofiel",
+        favoriteGenres: "Favoriete genres",
+        preferredLanguages: "Voorkeurstalen",
+        notSetYet: "Nog niet ingevuld",
+        recommendationHint:
+            "Je leesprofiel helpt je boekenclub om betere boekaanbevelingen te krijgen.",
+
+        appPreferences: "App voorkeuren",
+        appearance: "Weergave",
+        system: "Systeem",
+        light: "Licht",
+        dark: "Donker",
+
+        account: "Account",
+        accountSettings: "Accountinstellingen",
+        email: "E-mailadres",
+        logout: "Uitloggen",
+        passwordHidden: "••••••••",
+        name: "Naam",
+        Password: "Wachtwoord"
+    },
+
+    profilePreferences: {
+        title: "Voorkeuren",
+        loading: "Voorkeuren laden...",
+        favoriteGenres: "Favoriete genres",
+        preferredLanguages: "Voorkeurstalen",
+        appearance: "Weergave",
+        system: "Systeem",
+        light: "Licht",
+        dark: "Donker",
+        save: "Opslaan",
+        saving: "Opslaan...",
+        errorTitle: "Voorkeuren opslaan mislukt",
+        errorMessage: "Er ging iets mis bij het opslaan van je voorkeuren.",
+    },
+
+    profileAccount: {
+        title: "Accountinstellingen",
+        loading: "Account laden...",
+
+        displayName: "Naam",
+        displayNamePlaceholder: "Vul je naam in",
+        saveName: "Naam opslaan",
+
+        changeEmail: "E-mail wijzigen",
+        email: "E-mailadres",
+        emailPlaceholder: "Vul je nieuwe e-mailadres in",
+        emailInfo:
+            "Na het wijzigen van je e-mailadres moet je dit mogelijk bevestigen via je inbox.",
+
+        changePassword: "Wachtwoord wijzigen",
+        password: "Nieuw wachtwoord",
+        passwordPlaceholder: "Vul je nieuwe wachtwoord in",
+        passwordInfo: "Kies een veilig wachtwoord van minimaal 6 tekens.",
+
+        saving: "Opslaan...",
+        savedTitle: "Opgeslagen",
+        savedNameMessage: "Je naam is aangepast.",
+        savedEmailMessage: "Controleer je inbox om je nieuwe e-mailadres te bevestigen.",
+        savedPasswordMessage: "Je wachtwoord is aangepast.",
+
+        errorTitle: "Account aanpassen mislukt",
+        passwordTooShort: "Je wachtwoord moet minimaal 6 tekens bevatten.",
+    },
 
 
 };

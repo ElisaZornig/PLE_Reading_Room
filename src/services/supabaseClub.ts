@@ -822,7 +822,8 @@ export type ClubMemberProgress = {
     role: "owner" | "member";
     status: string | null;
     progress: number;
-    avatarUrl?: string | null;
+    avatarId: string | null;
+    avatarBackgroundColor: string | null;
 };
 
 export async function fetchClubMemberProgress(input: {
@@ -855,7 +856,7 @@ export async function fetchClubMemberProgress(input: {
     const [{ data: profiles, error: profilesError }, progressResult] = await Promise.all([
         supabase
             .from("profiles")
-            .select("id, display_name")
+            .select("id, display_name, avatar_id, avatar_background_color")
             .in("id", userIds),
         currentBookId
             ? supabase
@@ -877,7 +878,11 @@ export async function fetchClubMemberProgress(input: {
     const profileMap = Object.fromEntries(
         (profiles ?? []).map((profile) => [
             profile.id,
-            profile.display_name?.trim() || "Club member",
+            {
+                displayName: profile.display_name?.trim() || "Club member",
+                avatarId: profile.avatar_id ?? null,
+                avatarBackgroundColor: profile.avatar_background_color ?? null,
+            },
         ])
     );
 
@@ -893,11 +898,13 @@ export async function fetchClubMemberProgress(input: {
 
     return memberRows.map((member) => ({
         userId: member.user_id,
-        displayName: profileMap[member.user_id] ?? "Club member",
+        displayName: profileMap[member.user_id]?.displayName ?? "Club member",
         role: member.role,
         status: progressMap[member.user_id]?.status ?? null,
         progress: progressMap[member.user_id]?.progress ?? 0,
-        avatarUrl: null,
+        avatarId: profileMap[member.user_id]?.avatarId ?? null,
+        avatarBackgroundColor:
+            profileMap[member.user_id]?.avatarBackgroundColor ?? null,
     }));
 }
 

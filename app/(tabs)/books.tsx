@@ -1,12 +1,11 @@
 import { Feather } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import { FlatList, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import {useEffect, useMemo, useState} from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 
-import { AppHeader } from "@/src/components/AppHeader";
 import { BookCover } from "@/src/components/BookCover";
 import { StarRatingDisplay } from "@/src/components/StarRatingDisplay";
 import { t } from "@/src/i18n";
