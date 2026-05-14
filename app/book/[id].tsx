@@ -571,9 +571,39 @@ function createStyles(theme: AppTheme) {
             justifyContent: "space-between",
             gap: theme.spacing.md,
         },
+
+        percentageInputWrap: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 10,
+            width: 76,
+            maxWidth: 76,
+            alignSelf: "flex-start",
+        },
+
+        percentageInput: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            paddingVertical: 8,
+            paddingHorizontal: 0,
+            textAlign: "right",
+            width: 36,
+            outlineStyle: "none" as never,
+        },
+
+        percentageSuffix: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginLeft: 3,
+        },
         ratingInputRow: {
             flexDirection: "row",
-            alignItems: "flex-end",
+            alignItems: "center",
             justifyContent: "space-between",
             gap: theme.spacing.md,
         },
@@ -581,52 +611,31 @@ function createStyles(theme: AppTheme) {
         ratingNumberWrap: {
             flexDirection: "row",
             alignItems: "center",
+            justifyContent: "center",
             backgroundColor: theme.colors.surface,
             borderWidth: 1,
             borderColor: theme.colors.border,
             borderRadius: theme.radius.md,
-            paddingHorizontal: 12,
-            minWidth: 70,
-            marginBottom: -2,
+            paddingHorizontal: 10,
+            width: 70,
+            maxWidth: 70,
+            alignSelf: "flex-start",
         },
 
         ratingNumberInput: {
-            flex: 1,
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
-            paddingVertical: 10,
+            paddingVertical: 8,
+            paddingHorizontal: 0,
             textAlign: "right",
+            width: 24,
+            outlineStyle: "none" as never,
         },
 
         ratingSuffix: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
-            marginLeft: 4,
-        },
-
-        percentageInputWrap: {
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: theme.colors.surface,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: theme.radius.md,
-            paddingHorizontal: 12,
-            minWidth: 70,
-        },
-
-        percentageInput: {
-            flex: 1,
-            color: theme.colors.text,
-            fontSize: theme.typography.fontSize.sm,
-            paddingVertical: 10,
-            textAlign: "right",
-        },
-
-        percentageSuffix: {
-            color: theme.colors.textMuted,
-            fontSize: theme.typography.fontSize.sm,
-            marginLeft: 4,
+            marginLeft: 3,
         },
         loadingWrapper: {
             flex: 1,
