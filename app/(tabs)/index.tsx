@@ -31,6 +31,7 @@ import { useAppTheme } from "@/src/theme/useAppTheme";
 import { Book } from "@/src/types/book";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
+import {prefetchClubRecommendations} from "@/src/services/clubRecommendations";
 
 type PressableCardProps = {
     onPress: () => void;
@@ -115,6 +116,8 @@ export default function HomeScreen() {
         }).format(date);
     }
 
+
+
     function getCurrentBookProgressText(book: Book) {
         const hasProgress = typeof book.progress === "number";
         const hasCurrentPage = typeof book.currentPage === "number";
@@ -141,7 +144,7 @@ export default function HomeScreen() {
         return t("home.noProgressYet");
     }
 
-    async function loadHomeData() {
+    const loadHomeData = useCallback(async () => {
         try {
             const [supabaseBooks, clubData, currentUserName] = await Promise.all([
                 fetchUserBooksFromSupabase(),
@@ -151,6 +154,9 @@ export default function HomeScreen() {
 
             setBooks(supabaseBooks);
             setClub(clubData);
+            if (clubData?.id) {
+                void prefetchClubRecommendations(clubData.id);
+            }
             setDisplayName(currentUserName);
         } catch (error) {
             console.error("Error loading home data:", error);
@@ -158,7 +164,7 @@ export default function HomeScreen() {
             setClub(null);
             setDisplayName("");
         }
-    }
+    }, []);
 
     useEffect(() => {
         void loadHomeData();

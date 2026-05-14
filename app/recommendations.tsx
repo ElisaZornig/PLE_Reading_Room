@@ -21,7 +21,7 @@ import { t } from "@/src/i18n";
 import {
     addRecommendationToClubShortlist,
     generateClubRecommendations,
-    type ClubRecommendation,
+    type ClubRecommendation, getCachedClubRecommendations,
 } from "@/src/services/clubRecommendations";
 import {
     type ClubShortlistItem,
@@ -137,10 +137,10 @@ export default function RecommendationsScreen() {
         try {
             setIsLoading(true);
 
-            const data = await generateClubRecommendations({
+            const data = await getCachedClubRecommendations({
                 clubId: resolvedClubId,
                 limit: 5,
-                excludeWorkIds: [],
+                forceRefresh: false,
             });
 
             const nextSeenWorkIds = [...new Set(data.map((item) => item.openLibraryWorkId))];
@@ -172,10 +172,10 @@ export default function RecommendationsScreen() {
         try {
             setIsRefreshing(true);
 
-            const data = await generateClubRecommendations({
+            const data = await getCachedClubRecommendations({
                 clubId: resolvedClubId,
                 limit: 5,
-                excludeWorkIds: [],
+                forceRefresh: true,
             });
 
             const nextSeenWorkIds = [...new Set(data.map((item) => item.openLibraryWorkId))];

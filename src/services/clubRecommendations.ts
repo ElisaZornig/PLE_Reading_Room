@@ -290,7 +290,15 @@ const clubAnalysisCache = new Map<
 >();
 
 const workDetailsCache = new Map<string, Promise<WorkDetails>>();
+const CLUB_RECOMMENDATIONS_TTL_MS = 1000 * 60 * 60 * 24;
 
+const clubRecommendationsCache = new Map<
+    string,
+    {
+        expiresAt: number;
+        promise: Promise<ClubRecommendation[]>;
+    }
+>();
 function debugLog(...args: unknown[]) {
     if (DEBUG_RECOMMENDATIONS) {
         console.log("[clubRecommendations]", ...args);
@@ -1264,9 +1272,18 @@ async function searchOpenLibrary(
     );
 
     if (!response.ok) {
-        throw new Error(
-            `Failed to fetch recommendations for ${subjects.join(", ")} / ${resolvedLanguage}.`
+        console.log(
+            "[clubRecommendations] OpenLibrary request failed",
+            response.status,
+            response.statusText,
+            {
+                subjects,
+                language: resolvedLanguage,
+                url: response.url,
+            }
         );
+
+        return [];
     }
 
     const data = (await response.json()) as OpenLibrarySearchResponse;
@@ -1503,8 +1520,14 @@ export async function generateClubRecommendations(input: {
     }
 
     for (const strategy of strategies) {
+        let docs: OpenLibrarySearchDoc[] = [];
 
-        const docs = await fetchSearchCandidates(strategy, 40);
+        try {
+            docs = await fetchSearchCandidates(strategy, 40);
+        } catch (error) {
+            console.log("[clubRecommendations] strategy failed", strategy.label, error);
+            continue;
+        }
 
         debugLog("strategy results", strategy.label, docs.length);
 
@@ -1675,6 +1698,42 @@ export async function generateClubRecommendations(input: {
     return enriched;
 }
 
+export function getCachedClubRecommendations(input: {
+    clubId: string;
+    limit?: number;
+    forceRefresh?: boolean;
+}) {
+    const clubId = input.clubId.trim();
+    const limit = input.limit ?? 5;
+    const cacheKey = `${clubId}-${limit}`;
+
+    if (!clubId) {
+        return Promise.resolve([]);
+    }
+
+    const cached = clubRecommendationsCache.get(cacheKey);
+
+    if (!input.forceRefresh && cached && cached.expiresAt > Date.now()) {
+        debugLog("using cached recommendations", cacheKey);
+        return cached.promise;
+    }
+
+    const promise = generateClubRecommendations({
+        clubId,
+        limit,
+    }).catch((error) => {
+        clubRecommendationsCache.delete(cacheKey);
+        throw error;
+    });
+
+    clubRecommendationsCache.set(cacheKey, {
+        expiresAt: Date.now() + CLUB_RECOMMENDATIONS_TTL_MS,
+        promise,
+    });
+
+    return promise;
+}
+
 export async function addRecommendationToClubShortlist(input: {
     clubId: string;
     recommendation: ClubRecommendation;
@@ -1780,4 +1839,19 @@ export function invalidateClubRecommendationCache(clubId?: string) {
 
     clubAnalysisCache.clear();
 }
+export function prefetchClubRecommendations(clubId: string) {
+    const trimmedClubId = clubId.trim();
 
+    if (!trimmedClubId) {
+        return Promise.resolve([]);
+    }
+
+    return getCachedClubRecommendations({
+        clubId: trimmedClubId,
+        limit: 5,
+        forceRefresh: false,
+    }).catch((error) => {
+        console.log("[prefetchClubRecommendations] failed", error);
+        return [];
+    });
+}
