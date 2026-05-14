@@ -128,24 +128,48 @@ export default function BookDetailScreen() {
         const clampedValue = clamp(value, 0, 5);
 
         setRating(clampedValue);
-        setRatingInput(clampedValue.toString());
+        setRatingInput(String(clampedValue));
     }
 
     function handleRatingInputChange(value: string) {
-        const cleanedValue = value.replace(",", ".").replace(/[^0-9.]/g, "");
+        const normalizedValue = value
+            .replace(",", ".")
+            .replace(/[^0-9.]/g, "");
+
+        const parts = normalizedValue.split(".");
+        const cleanedValue =
+            parts.length > 1
+                ? `${parts[0]}.${parts.slice(1).join("")}`
+                : normalizedValue;
 
         setRatingInput(cleanedValue);
 
-        if (cleanedValue === "") {
+        if (cleanedValue === "" || cleanedValue === ".") {
             setRating(0);
             return;
         }
 
-        const numericValue = clamp(Number(cleanedValue), 0, 5);
+        const numericValue = Number(cleanedValue);
 
-        if (!Number.isNaN(numericValue)) {
-            setRating(numericValue);
+        if (Number.isNaN(numericValue)) return;
+
+        const clampedValue = clamp(numericValue, 0, 5);
+        setRating(clampedValue);
+    }
+
+    function handleRatingInputBlur() {
+        const numericValue = Number(ratingInput.replace(",", "."));
+
+        if (Number.isNaN(numericValue)) {
+            setRating(0);
+            setRatingInput("0");
+            return;
         }
+
+        const clampedValue = clamp(numericValue, 0, 5);
+
+        setRating(clampedValue);
+        setRatingInput(String(clampedValue));
     }
     async function handleSave() {
         if (!book) return;
@@ -408,7 +432,7 @@ export default function BookDetailScreen() {
                                                 <TextInput
                                                     value={progressInput}
                                                     onChangeText={handleProgressInputChange}
-                                                    keyboardType="numeric"
+                                                    keyboardType="decimal-pad"
                                                     style={styles.percentageInput}
                                                     placeholder="0"
                                                     placeholderTextColor={theme.colors.textMuted}
@@ -494,7 +518,9 @@ export default function BookDetailScreen() {
                                         <TextInput
                                             value={ratingInput}
                                             onChangeText={handleRatingInputChange}
-                                            keyboardType="numeric"
+                                            onBlur={handleRatingInputBlur}
+                                            keyboardType="decimal-pad"
+                                            inputMode="decimal"
                                             style={styles.ratingNumberInput}
                                             placeholder="0"
                                             placeholderTextColor={theme.colors.textMuted}
