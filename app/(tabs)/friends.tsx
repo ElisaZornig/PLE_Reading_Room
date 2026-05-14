@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {Image, Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View} from "react-native";
 import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -110,15 +110,15 @@ export default function FriendsScreen() {
     async function handleSendFriendRequest(receiverId: string) {
         if (!currentUserId) return;
 
+        Keyboard.dismiss();
+
+        console.log("ADD BUTTON PRESSED");
         console.log("REQUESTER:", currentUserId);
         console.log("RECEIVER:", receiverId);
 
         try {
             await sendFriendRequest(currentUserId, receiverId);
             setSentRequestIds((previousIds) => [...previousIds, receiverId]);
-
-            setSearchQuery("");
-            setSearchResults([]);
         } catch (error) {
             console.log("Error sending friend request:", error);
         }
@@ -200,16 +200,14 @@ export default function FriendsScreen() {
 
 
                                         <Pressable
-                                            style={[
+                                            style={({ pressed }) => [
                                                 styles.addIconButton,
                                                 requestSent && styles.addIconButtonSent,
+                                                pressed && !requestSent && styles.addIconButtonPressed,
                                             ]}
-                                            onPress={() => {
-                                                if (!requestSent) {
-                                                    handleSendFriendRequest(profile.id);
-                                                }
-                                            }}
+                                            onPress={() => handleSendFriendRequest(profile.id)}
                                             disabled={requestSent}
+                                            hitSlop={10}
                                         >
                                             <Feather
                                                 name={requestSent ? "check" : "plus"}
@@ -419,6 +417,9 @@ function createStyles(theme: AppTheme) {
             alignItems: "flex-start",
             justifyContent: "space-between",
             gap: theme.spacing.md,
+        },
+        addIconButtonPressed: {
+            opacity: 0.75,
         },
         bookContentRow: {
             flexDirection: "row",
