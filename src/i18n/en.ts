@@ -3,6 +3,7 @@ const en = {
         home: "Home",
         books: "Books",
         club: "Club",
+        friends: "Friends"
     },
     home: {
         welcome: "Welcome back, %{name}!",
@@ -471,6 +472,34 @@ const en = {
 
         errorTitle: "Could not update account",
         passwordTooShort: "Your password must be at least 6 characters.",
+    },
+    friends: {
+        title: "Friends",
+        subtitle: "See what your reading friends are reading.",
+        addFriend: "Add friend",
+        searchPlaceholder: "Search by name",
+        searching: "Searching...",
+        noUsersFound: "No users found.",
+        requestsTitle: "Friend requests",
+        wantsToAddYou: "Wants to add you as a friend",
+        myFriends: "My friends",
+        loadingFriends: "Loading friends...",
+        noFriends: "You have not added any friends yet.",
+        viewReadingProfile: "View reading profile",
+        booksOnTbr: "{{count}} books on TBR",
+    },
+    friendProfile: {
+        title: "Reading profile",
+        sharedReadingInfo: "View shared reading information",
+        loading: "Loading reading profile...",
+        currentlyReading: "Currently reading",
+        wantToRead: "Want to read",
+        readBooks: "Read books",
+        notReading: "Not reading a book right now.",
+        noTbr: "No TBR books visible.",
+        noReadBooks: "No read books visible yet.",
+        unknownUser: "Unknown user",
+        privateProfile: "You can only view this reading profile if you are friends.",
     },
 
 

@@ -51,10 +51,12 @@ export default function BookDetailScreen() {
     const [status, setStatus] = useState<BookStatus>("toRead");
     const [progressMode, setProgressMode] = useState<ProgressMode>("percentage");
     const [progress, setProgress] = useState(0);
+    const [progressInput, setProgressInput] = useState("0");
     const [currentPage, setCurrentPage] = useState("");
     const [totalPages, setTotalPages] = useState("");
 
     const [rating, setRating] = useState(0);
+    const [ratingInput, setRatingInput] = useState("0");
     const [review, setReview] = useState("");
     const [dnfReason, setDnfReason] = useState("");
 
@@ -76,10 +78,14 @@ export default function BookDetailScreen() {
                             : "percentage");
 
                     setProgressMode(initialProgressMode);
-                    setProgress(foundBook.progress ?? 0);
+                    const initialProgress = foundBook.progress ?? 0;
+                    setProgress(initialProgress);
+                    setProgressInput(Math.round(initialProgress).toString());
                     setCurrentPage(foundBook.currentPage?.toString() ?? "");
                     setTotalPages(foundBook.totalPages?.toString() ?? "");
-                    setRating(foundBook.rating ?? 0);
+                    const initialRating = foundBook.rating ?? 0;
+                    setRating(initialRating);
+                    setRatingInput(initialRating.toString());
                     setReview(foundBook.review ?? "");
                     setDnfReason(foundBook.dnfReason ?? "");
                 }
@@ -97,7 +103,50 @@ export default function BookDetailScreen() {
 
         void loadBook();
     }, [decodedId]);
+    function handleProgressSliderChange(value: number) {
+        const roundedValue = Math.round(value);
+        setProgress(roundedValue);
+        setProgressInput(roundedValue.toString());
+    }
 
+    function handleProgressInputChange(value: string) {
+        const cleanedValue = value.replace(/[^0-9]/g, "");
+
+        setProgressInput(cleanedValue);
+
+        if (cleanedValue === "") {
+            setProgress(0);
+            return;
+        }
+
+        const numericValue = clamp(Number(cleanedValue), 0, 100);
+
+        setProgress(numericValue);
+        setProgressInput(numericValue.toString());
+    }
+    function handleRatingChange(value: number) {
+        const clampedValue = clamp(value, 0, 5);
+
+        setRating(clampedValue);
+        setRatingInput(clampedValue.toString());
+    }
+
+    function handleRatingInputChange(value: string) {
+        const cleanedValue = value.replace(",", ".").replace(/[^0-9.]/g, "");
+
+        setRatingInput(cleanedValue);
+
+        if (cleanedValue === "") {
+            setRating(0);
+            return;
+        }
+
+        const numericValue = clamp(Number(cleanedValue), 0, 5);
+
+        if (!Number.isNaN(numericValue)) {
+            setRating(numericValue);
+        }
+    }
     async function handleSave() {
         if (!book) return;
 
@@ -350,13 +399,28 @@ export default function BookDetailScreen() {
 
                                 {progressMode === "percentage" ? (
                                     <View style={styles.progressBlock}>
-                                        <Text style={styles.progressValue}>
-                                            {Math.round(progress)}%
-                                        </Text>
+                                        <View style={styles.percentageInputRow}>
+                                            <Text style={styles.progressValue}>
+                                                {Math.round(progress)}%
+                                            </Text>
+
+                                            <View style={styles.percentageInputWrap}>
+                                                <TextInput
+                                                    value={progressInput}
+                                                    onChangeText={handleProgressInputChange}
+                                                    keyboardType="numeric"
+                                                    style={styles.percentageInput}
+                                                    placeholder="0"
+                                                    placeholderTextColor={theme.colors.textMuted}
+                                                    maxLength={3}
+                                                />
+                                                <Text style={styles.percentageSuffix}>%</Text>
+                                            </View>
+                                        </View>
 
                                         <Slider
                                             value={progress}
-                                            onValueChange={setProgress}
+                                            onValueChange={handleProgressSliderChange}
                                             minimumValue={0}
                                             maximumValue={100}
                                             step={1}
@@ -420,12 +484,26 @@ export default function BookDetailScreen() {
                                     </View>
                                 ) : null}
 
-                                <StarRatingInput value={rating} onChange={setRating} />
+                                <View style={styles.ratingInputRow}>
+                                    <StarRatingInput
+                                        value={rating}
+                                        onChange={handleRatingChange}
+                                    />
 
+                                    <View style={styles.ratingNumberWrap}>
+                                        <TextInput
+                                            value={ratingInput}
+                                            onChangeText={handleRatingInputChange}
+                                            keyboardType="numeric"
+                                            style={styles.ratingNumberInput}
+                                            placeholder="0"
+                                            placeholderTextColor={theme.colors.textMuted}
+                                            maxLength={3}
+                                        />
+                                        <Text style={styles.ratingSuffix}>/ 5</Text>
+                                    </View>
+                                </View>
                                 <View style={styles.inputGroup}>
-                                    <Text style={styles.fieldLabel}>
-                                        {t("bookDetail.reviewTitle")}
-                                    </Text>
                                     <TextInput
                                         value={review}
                                         onChangeText={setReview}
@@ -486,6 +564,69 @@ function createStyles(theme: AppTheme) {
             paddingHorizontal: theme.spacing.lg,
             paddingBottom: theme.spacing.md,
             gap: theme.spacing.md,
+        },
+        percentageInputRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+        },
+        ratingInputRow: {
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: theme.spacing.md,
+        },
+
+        ratingNumberWrap: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 12,
+            minWidth: 70,
+            marginBottom: -2,
+        },
+
+        ratingNumberInput: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            paddingVertical: 10,
+            textAlign: "right",
+        },
+
+        ratingSuffix: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginLeft: 4,
+        },
+
+        percentageInputWrap: {
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 12,
+            minWidth: 70,
+        },
+
+        percentageInput: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            paddingVertical: 10,
+            textAlign: "right",
+        },
+
+        percentageSuffix: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginLeft: 4,
         },
         loadingWrapper: {
             flex: 1,

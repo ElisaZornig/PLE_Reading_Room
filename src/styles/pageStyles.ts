@@ -56,7 +56,7 @@ export function createPageStyles(theme: AppTheme) {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.lg,
             fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: 4,
+            marginBottom: 2,
         },
         text: {
             color: theme.colors.text,

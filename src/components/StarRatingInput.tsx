@@ -26,8 +26,6 @@ export function StarRatingInput({ value, onChange }: Props) {
 
     return (
         <View style={styles.wrapper}>
-            <Text style={styles.helperText}>Tik op de sterren om je rating te geven</Text>
-
             <View style={styles.row}>
                 {[1, 2, 3, 4, 5].map((starNumber) => (
                     <View key={starNumber} style={styles.starContainer}>
@@ -50,16 +48,6 @@ export function StarRatingInput({ value, onChange }: Props) {
                     </View>
                 ))}
             </View>
-
-            <View style={styles.bottomRow}>
-                <Text style={styles.valueText}>{value.toFixed(1)} / 5</Text>
-
-                {value > 0 ? (
-                    <Pressable onPress={() => onChange(0)} style={styles.clearButton}>
-                        <Text style={styles.clearButtonText}>Wis</Text>
-                    </Pressable>
-                ) : null}
-            </View>
         </View>
     );
 }
@@ -67,7 +55,7 @@ export function StarRatingInput({ value, onChange }: Props) {
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
         wrapper: {
-            gap: theme.spacing.sm,
+            gap: theme.spacing.xs,
         },
         helperText: {
             color: theme.colors.textMuted,

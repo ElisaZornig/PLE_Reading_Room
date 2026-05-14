@@ -3,6 +3,7 @@ const nl = {
         home: "Home",
         books: "Boeken",
         club: "Club",
+        friends: "Vrienden"
     },
     home: {
         welcome: "Welkom terug, %{name}!",
@@ -468,6 +469,34 @@ const nl = {
 
         errorTitle: "Account aanpassen mislukt",
         passwordTooShort: "Je wachtwoord moet minimaal 6 tekens bevatten.",
+    },
+    friends: {
+        title: "Vrienden",
+        subtitle: "Bekijk wat je leesvrienden lezen.",
+        addFriend: "Vriend toevoegen",
+        searchPlaceholder: "Zoek op naam",
+        searching: "Zoeken...",
+        noUsersFound: "Geen gebruikers gevonden.",
+        requestsTitle: "Vriendschapsverzoeken",
+        wantsToAddYou: "Wil je toevoegen als vriend",
+        myFriends: "Mijn vrienden",
+        loadingFriends: "Vrienden laden...",
+        noFriends: "Je hebt nog geen vrienden toegevoegd.",
+        viewReadingProfile: "Bekijk leesprofiel",
+        booksOnTbr: "{{count}} boeken op TBR",
+    },
+    friendProfile: {
+        title: "Leesprofiel",
+        sharedReadingInfo: "Bekijk gedeelde leesinformatie",
+        loading: "Leesprofiel laden...",
+        currentlyReading: "Leest nu",
+        wantToRead: "Wil lezen",
+        readBooks: "Gelezen boeken",
+        notReading: "Leest op dit moment geen boek.",
+        noTbr: "Geen TBR-boeken zichtbaar.",
+        noReadBooks: "Nog geen gelezen boeken zichtbaar.",
+        unknownUser: "Onbekende gebruiker",
+        privateProfile: "Je kunt dit leesprofiel alleen bekijken als jullie vrienden zijn.",
     },
 
 

@@ -71,6 +71,15 @@ export default function TabsLayout() {
                     ),
                 }}
             />
+            <Tabs.Screen
+                name="friends"
+                options={{
+                    title: t("tabs.friends"),
+                    tabBarIcon: ({ color, focused }) => (
+                        <TabIcon name="heart-outline" focused={focused} color={color} />
+                    ),
+                }}
+            />
         </Tabs>
     );
 }
