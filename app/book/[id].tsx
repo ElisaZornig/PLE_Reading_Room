@@ -519,8 +519,8 @@ export default function BookDetailScreen() {
                                             value={ratingInput}
                                             onChangeText={handleRatingInputChange}
                                             onBlur={handleRatingInputBlur}
-                                            keyboardType="decimal-pad"
-                                            inputMode="decimal"
+                                            keyboardType="default"
+                                            inputMode="text"
                                             style={styles.ratingNumberInput}
                                             placeholder="0"
                                             placeholderTextColor={theme.colors.textMuted}
