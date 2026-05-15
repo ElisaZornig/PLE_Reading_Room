@@ -24,4 +24,15 @@ export const darkTheme = {
     },
 };
 
+export const greenTheme = {
+    colors: colors.green,
+    spacing,
+    radius,
+    typography: {
+        fontSize,
+        lineHeight,
+        fontWeight,
+    },
+};
+
 export type AppTheme = typeof lightTheme;

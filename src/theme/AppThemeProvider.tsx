@@ -1,9 +1,13 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+    createContext,
+    useContext,
+    useMemo,
+    useState,
+} from "react";
 import { useColorScheme } from "react-native";
-import { darkTheme, lightTheme } from "./theme";
+import { darkTheme, greenTheme, lightTheme } from "./theme";
 
-export type ThemePreference = "system" | "light" | "dark";
+export type ThemePreference = "system" | "light" | "dark" | "green";
 
 type AppThemeContextValue = {
     themePreference: ThemePreference;
@@ -11,30 +15,25 @@ type AppThemeContextValue = {
     theme: typeof lightTheme;
 };
 
-const STORAGE_KEY = "app_theme_preference";
-
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
+
+export function isThemePreference(value: unknown): value is ThemePreference {
+    return (
+        value === "system" ||
+        value === "light" ||
+        value === "dark" ||
+        value === "green"
+    );
+}
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
     const systemScheme = useColorScheme();
+
     const [themePreference, setThemePreferenceState] =
         useState<ThemePreference>("system");
 
-    useEffect(() => {
-        AsyncStorage.getItem(STORAGE_KEY).then((storedTheme) => {
-            if (
-                storedTheme === "system" ||
-                storedTheme === "light" ||
-                storedTheme === "dark"
-            ) {
-                setThemePreferenceState(storedTheme);
-            }
-        });
-    }, []);
-
     async function setThemePreference(preference: ThemePreference) {
         setThemePreferenceState(preference);
-        await AsyncStorage.setItem(STORAGE_KEY, preference);
     }
 
     const activeTheme =
@@ -44,7 +43,9 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
                 : darkTheme
             : themePreference === "light"
                 ? lightTheme
-                : darkTheme;
+                : themePreference === "dark"
+                    ? darkTheme
+                    : greenTheme;
 
     const value = useMemo(
         () => ({

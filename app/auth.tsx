@@ -7,6 +7,8 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { showAppAlert } from "@/src/utils/appAlert";
 import { t } from "@/src/i18n";
+import { useAppThemeContext } from "@/src/theme/AppThemeProvider";
+import { getUserAppTheme } from "@/src/theme/applyUserTheme";
 
 type FormErrors = {
     email?: string;
@@ -21,6 +23,7 @@ export default function AuthScreen() {
     const [password, setPassword] = useState("");
     const [errors, setErrors] = useState<FormErrors>({});
     const [isLoading, setIsLoading] = useState(false);
+    const { setThemePreference } = useAppThemeContext();
 
     function validateForm() {
         const newErrors: FormErrors = {};
@@ -47,7 +50,7 @@ export default function AuthScreen() {
         try {
             setIsLoading(true);
 
-            const { error } = await supabase.auth.signInWithPassword({
+            const { data, error } = await supabase.auth.signInWithPassword({
                 email: email.trim(),
                 password,
             });
@@ -61,7 +64,10 @@ export default function AuthScreen() {
                 showAppAlert(t("auth.errors.signInFailedTitle"), message);
                 return;
             }
-
+            if (data.user) {
+                const userTheme = await getUserAppTheme(data.user.id);
+                await setThemePreference(userTheme);
+            }
             router.replace("/");
         } catch {
             showAppAlert(

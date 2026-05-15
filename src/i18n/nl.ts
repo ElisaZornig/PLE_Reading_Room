@@ -436,6 +436,7 @@ const nl = {
         system: "Systeem",
         light: "Licht",
         dark: "Donker",
+        green: "Groen",
         save: "Opslaan",
         saving: "Opslaan...",
         errorTitle: "Voorkeuren opslaan mislukt",

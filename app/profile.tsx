@@ -17,6 +17,10 @@ import { t } from "@/src/i18n";
 import { supabase } from "@/src/services/supabase";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
+import {
+    ThemePreference,
+    useAppThemeContext,
+} from "@/src/theme/AppThemeProvider";
 
 type Profile = {
     id: string;
@@ -25,6 +29,7 @@ type Profile = {
     avatar_background_color: string | null;
     favorite_genres: string[] | null;
     preferred_languages: string[] | null;
+    app_theme: ThemePreference | null;
 };
 
 export default function ProfileScreen() {
@@ -35,6 +40,7 @@ export default function ProfileScreen() {
     const [email, setEmail] = useState("");
     const [clubCount, setClubCount] = useState(0);
     const [loading, setLoading] = useState(true);
+    const { setThemePreference } = useAppThemeContext();
 
     async function fetchProfile() {
         setLoading(true);
@@ -74,6 +80,7 @@ export default function ProfileScreen() {
 
     async function handleLogout() {
         await supabase.auth.signOut();
+        await setThemePreference("system");
         router.replace("/auth");
     }
 
@@ -177,7 +184,9 @@ export default function ProfileScreen() {
                                 ? t("profile.light")
                                 : profile?.app_theme === "dark"
                                     ? t("profile.dark")
-                                    : t("profile.system")}
+                                    : profile?.app_theme === "green"
+                                        ? t("profile.green")
+                                        : t("profile.system")}
                         </Text>
                     </View>
                 </Pressable>

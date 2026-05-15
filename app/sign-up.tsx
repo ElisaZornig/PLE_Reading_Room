@@ -2,11 +2,12 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "../src/services/supabase";
-import { t } from "../src/i18n";
-import { showAppAlert } from "../src/utils/appAlert";
-import { AppTheme } from "../src/theme/theme";
-import { useAppTheme } from "../src/theme/useAppTheme";
+import { supabase } from "@/src/services/supabase";
+import { t } from "@/src/i18n";
+import { showAppAlert } from "@/src/utils/appAlert";
+import { AppTheme } from "@/src/theme/theme";
+import { useAppTheme } from "@/src/theme/useAppTheme";
+import { useAppThemeContext } from "@/src/theme/AppThemeProvider";
 
 type FormErrors = {
     displayName?: string;
@@ -23,6 +24,7 @@ export default function SignUpScreen() {
     const [password, setPassword] = useState("");
     const [errors, setErrors] = useState<FormErrors>({});
     const [isLoading, setIsLoading] = useState(false);
+    const { setThemePreference } = useAppThemeContext();
 
     function validateForm() {
         const newErrors: FormErrors = {};
@@ -56,7 +58,7 @@ export default function SignUpScreen() {
         try {
             setIsLoading(true);
 
-            const { error } = await supabase.auth.signUp({
+            const { data, error } = await supabase.auth.signUp({
                 email: email.trim(),
                 password,
                 options: {
@@ -81,6 +83,10 @@ export default function SignUpScreen() {
                 t("auth.signUp.success.title"),
                 t("auth.signUp.success.message")
             );
+
+            if (data.user) {
+                await setThemePreference("system");
+            }
 
             router.replace("/auth");
         } catch {

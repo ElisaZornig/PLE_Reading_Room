@@ -439,6 +439,7 @@ const en = {
         system: "System",
         light: "Light",
         dark: "Dark",
+        green: "Green",
         save: "Save",
         saving: "Saving...",
         errorTitle: "Could not save preferences",

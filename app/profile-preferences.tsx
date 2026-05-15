@@ -27,7 +27,7 @@ import {
 
 
 
-const THEME_OPTIONS: ThemePreference[] = ["system", "light", "dark"];
+const THEME_OPTIONS: ThemePreference[] = ["system", "light", "dark", "green"];
 
 type ProfilePreferences = {
     id: string;
@@ -39,13 +39,13 @@ type ProfilePreferences = {
 export default function ProfilePreferencesScreen() {
     const theme = useAppTheme();
     const styles = createStyles(theme);
-    const { setThemePreference } = useAppThemeContext();
+    const { themePreference, setThemePreference } = useAppThemeContext();
 
     const [profile, setProfile] = useState<ProfilePreferences | null>(null);
     const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
     const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
     const [selectedTheme, setSelectedTheme] =
-        useState<ThemePreference>("system");
+        useState<ThemePreference>(themePreference);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -72,7 +72,8 @@ export default function ProfilePreferencesScreen() {
             const appTheme =
                 data.app_theme === "light" ||
                 data.app_theme === "dark" ||
-                data.app_theme === "system"
+                data.app_theme === "system" ||
+                data.app_theme === "green"
                     ? data.app_theme
                     : "system";
 
@@ -99,6 +100,11 @@ export default function ProfilePreferencesScreen() {
                 ? currentLanguages.filter((item) => item !== language)
                 : [...currentLanguages, language]
         );
+    }
+
+    async function selectTheme(themeOption: ThemePreference) {
+        setSelectedTheme(themeOption);
+        await setThemePreference(themeOption);
     }
 
     async function savePreferences() {
@@ -240,7 +246,7 @@ export default function ProfilePreferencesScreen() {
                             return (
                                 <Pressable
                                     key={themeOption}
-                                    onPress={() => setSelectedTheme(themeOption)}
+                                    onPress={() => void selectTheme(themeOption)}
                                     style={[
                                         styles.optionRow,
                                         isSelected && styles.optionRowSelected,
