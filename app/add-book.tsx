@@ -31,12 +31,13 @@ import {
 import { createPageStyles } from "@/src/styles/pageStyles";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
-import { SearchBookResult } from "@/src/types/book";
+import {BookStatus, SearchBookResult} from "@/src/types/book";
 import { showAppAlert } from "@/src/utils/appAlert";
 import { getOpenLibraryWorkId } from "@/src/utils/openLibrary";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {GENRE_OPTIONS} from "@/src/constants/readingPreferences";
+import {ADD_BOOK_STATUS_OPTIONS} from "@/src/constants/bookStatus";
 
 export default function AddBookScreen() {
     const theme = useAppTheme();
@@ -56,6 +57,12 @@ export default function AddBookScreen() {
     const [manualYear, setManualYear] = useState("");
     const [isSavingManualBook, setIsSavingManualBook] = useState(false);
     const [manualGenres, setManualGenres] = useState<string[]>([]);
+    const [selectedStatus, setSelectedStatus] = useState<BookStatus>("toRead");
+    const [selectedProgress, setSelectedProgress] = useState("");
+    const [selectedRating, setSelectedRating] = useState("");
+    const [selectedDnfReason, setSelectedDnfReason] = useState("");
+    const [bookToAddWithStatus, setBookToAddWithStatus] =
+        useState<SearchBookResult | null>(null);
 
     const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
 
@@ -99,13 +106,13 @@ export default function AddBookScreen() {
 
     async function handleToggleBook(result: SearchBookResult) {
         try {
-            setIsAddingBookId(result.id);
-
             const workId = getOpenLibraryWorkId(result.id);
             const storedBookId = storedBookMap[workId];
             const isAlreadyStored = Boolean(storedBookId);
 
             if (isAlreadyStored) {
+                setIsAddingBookId(result.id);
+
                 await removeUserBookFromSupabase(storedBookId);
 
                 setStoredBookMap((current) => {
@@ -117,20 +124,46 @@ export default function AddBookScreen() {
                 return;
             }
 
+            resetAddBookDetails();
+            setBookToAddWithStatus(result);
+        } catch (error) {
+            console.error("Fout bij toevoegen of verwijderen van boek:", error);
+            showAppAlert(t("addBook.errorTitle"), t("addBook.toggleError"));
+        } finally {
+            setIsAddingBookId(null);
+        }
+    }
+    async function handleConfirmAddSearchedBook() {
+        if (!bookToAddWithStatus) return;
+
+        const addBookDetails = getAddBookDetails();
+
+        if (!addBookDetails) return;
+
+        try {
+            setIsAddingBookId(bookToAddWithStatus.id);
+
+            const workId = getOpenLibraryWorkId(bookToAddWithStatus.id);
             const userId = await getCurrentUserId();
+
             const savedBook = await upsertBookFromSearchResult({
-                ...result,
+                ...bookToAddWithStatus,
                 id: workId,
             });
 
-            await addBookToUserLibrary(savedBook.id, userId);
+            await addBookToUserLibrary(savedBook.id, userId, addBookDetails);
+
             triggerRefresh("books", "home");
+
             setStoredBookMap((current) => ({
                 ...current,
                 [workId]: savedBook.id,
             }));
+
+            setBookToAddWithStatus(null);
+            resetAddBookDetails();
         } catch (error) {
-            console.error("Fout bij toevoegen of verwijderen van boek:", error);
+            console.error("Fout bij toevoegen van boek:", error);
             showAppAlert(t("addBook.errorTitle"), t("addBook.toggleError"));
         } finally {
             setIsAddingBookId(null);
@@ -157,6 +190,9 @@ export default function AddBookScreen() {
             );
             return;
         }
+        const addBookDetails = getAddBookDetails();
+
+        if (!addBookDetails) return;
 
         try {
             setIsSavingManualBook(true);
@@ -166,6 +202,7 @@ export default function AddBookScreen() {
                 author,
                 firstPublishYear: parsedYear,
                 genres: manualGenres,
+                ...addBookDetails,
             });
 
             triggerRefresh("books", "home");
@@ -175,6 +212,7 @@ export default function AddBookScreen() {
             setManualYear("");
             setIsManualBookModalVisible(false);
             setManualGenres([]);
+            resetAddBookDetails();
 
             showAppAlert(
                 t("addBook.manualSuccessTitle"),
@@ -198,6 +236,159 @@ export default function AddBookScreen() {
 
             return [...currentGenres, genreValue];
         });
+    }
+    const addBookDetailsSection = (
+        <View style={styles.statusSection}>
+            <Text style={styles.statusSectionTitle}>
+                {t("addBook.statusLabel")}
+            </Text>
+
+            <View style={styles.statusChipWrap}>
+                {ADD_BOOK_STATUS_OPTIONS.map((status) => {
+                    const isSelected = selectedStatus === status.value;
+
+                    return (
+                        <Pressable
+                            key={status.value}
+                            style={[
+                                styles.statusChip,
+                                isSelected && styles.statusChipSelected,
+                            ]}
+                            onPress={() => setSelectedStatus(status.value)}
+                        >
+                            <Text
+                                style={[
+                                    styles.statusChipText,
+                                    isSelected && styles.statusChipTextSelected,
+                                ]}
+                            >
+                                {t(status.labelKey)}
+                            </Text>
+                        </Pressable>
+                    );
+                })}
+            </View>
+
+            {selectedStatus === "reading" ? (
+                <TextInput
+                    value={selectedProgress}
+                    onChangeText={setSelectedProgress}
+                    placeholder={t("addBook.progressPlaceholder")}
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={styles.manualInput}
+                    keyboardType="decimal-pad"
+                />
+            ) : null}
+
+            {selectedStatus === "finished" ? (
+                <TextInput
+                    value={selectedRating}
+                    onChangeText={setSelectedRating}
+                    placeholder={t("addBook.ratingPlaceholder")}
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={styles.manualInput}
+                    keyboardType="decimal-pad"
+                />
+            ) : null}
+
+            {selectedStatus === "dnf" ? (
+                <>
+                    <TextInput
+                        value={selectedProgress}
+                        onChangeText={setSelectedProgress}
+                        placeholder={t("addBook.dnfProgressPlaceholder")}
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={styles.manualInput}
+                        keyboardType="decimal-pad"
+                    />
+
+                    <TextInput
+                        value={selectedDnfReason}
+                        onChangeText={setSelectedDnfReason}
+                        placeholder={t("addBook.dnfReasonPlaceholder")}
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={[styles.manualInput, styles.dnfReasonInput]}
+                        multiline
+                    />
+                </>
+            ) : null}
+        </View>
+    );
+
+    function resetAddBookDetails() {
+        setSelectedStatus("toRead");
+        setSelectedProgress("");
+        setSelectedRating("");
+        setSelectedDnfReason("");
+    }
+
+    function parseNumberInput(value: string) {
+        const normalizedValue = value.replace(",", ".").trim();
+
+        if (!normalizedValue) {
+            return undefined;
+        }
+
+        return Number(normalizedValue);
+    }
+
+    function getAddBookDetails() {
+        const progress = parseNumberInput(selectedProgress);
+        const rating = parseNumberInput(selectedRating);
+
+        if (selectedStatus === "reading") {
+            if (progress === undefined || Number.isNaN(progress)) {
+                showAppAlert(
+                    t("addBook.errorTitle"),
+                    t("addBook.progressRequired")
+                );
+                return null;
+            }
+
+            if (progress < 0 || progress > 100) {
+                showAppAlert(
+                    t("addBook.errorTitle"),
+                    t("addBook.progressInvalid")
+                );
+                return null;
+            }
+        }
+
+        if (selectedStatus === "dnf" && progress !== undefined) {
+            if (Number.isNaN(progress) || progress < 0 || progress > 100) {
+                showAppAlert(
+                    t("addBook.errorTitle"),
+                    t("addBook.progressInvalid")
+                );
+                return null;
+            }
+        }
+
+        if (selectedStatus === "finished" && rating !== undefined) {
+            if (Number.isNaN(rating) || rating < 0 || rating > 5) {
+                showAppAlert(
+                    t("addBook.errorTitle"),
+                    t("addBook.ratingInvalid")
+                );
+                return null;
+            }
+        }
+
+        return {
+            status: selectedStatus,
+            progress:
+                selectedStatus === "finished"
+                    ? 100
+                    : selectedStatus === "reading" || selectedStatus === "dnf"
+                        ? progress ?? 0
+                        : 0,
+            progressMode: "percentage" as const,
+            rating: selectedStatus === "finished" ? rating : undefined,
+            dnfReason:
+                selectedStatus === "dnf"
+                    ? selectedDnfReason.trim() || undefined
+                    : undefined,
+        };
     }
 
     const manualBookCard = hasSearched ? (
@@ -442,6 +633,8 @@ export default function AddBookScreen() {
                                     </View>
                                 </View>
 
+                                {addBookDetailsSection}
+
                                 <View style={styles.modalButtonRow}>
                                     <Pressable
                                         style={styles.modalSecondaryButton}
@@ -468,6 +661,90 @@ export default function AddBookScreen() {
                                             {isSavingManualBook
                                                 ? t("addBook.manualSaving")
                                                 : t("addBook.manualSaveButton")}
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+            <Modal
+                visible={Boolean(bookToAddWithStatus)}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {
+                    setBookToAddWithStatus(null);
+                    resetAddBookDetails();
+                }}
+            >
+                <KeyboardAvoidingView
+                    style={styles.modalKeyboardView}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                >
+                    <View style={styles.modalOverlay}>
+                        <ScrollView
+                            contentContainerStyle={styles.modalScrollContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalCard}>
+                                <Text style={styles.modalTitle}>
+                                    {t("addBook.chooseStatusTitle")}
+                                </Text>
+
+                                {bookToAddWithStatus ? (
+                                    <View style={styles.selectedBookPreview}>
+                                        {bookToAddWithStatus.cover ? (
+                                            <BookCover
+                                                title={bookToAddWithStatus.title}
+                                                cover={bookToAddWithStatus.cover}
+                                                small
+                                            />
+                                        ) : (
+                                            <CoverPlaceholder title={bookToAddWithStatus.title} />
+                                        )}
+
+                                        <View style={styles.bookInfo}>
+                                            <Text style={styles.bookTitle}>
+                                                {bookToAddWithStatus.title}
+                                            </Text>
+                                            <Text style={styles.bookAuthor}>
+                                                {bookToAddWithStatus.author}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ) : null}
+
+                                {addBookDetailsSection}
+
+                                <View style={styles.modalButtonRow}>
+                                    <Pressable
+                                        style={styles.modalSecondaryButton}
+                                        onPress={() => {
+                                            Keyboard.dismiss();
+                                            setBookToAddWithStatus(null);
+                                            resetAddBookDetails();
+                                        }}
+                                        disabled={Boolean(isAddingBookId)}
+                                    >
+                                        <Text style={styles.modalSecondaryButtonText}>
+                                            {t("common.cancel")}
+                                        </Text>
+                                    </Pressable>
+
+                                    <Pressable
+                                        style={[
+                                            styles.modalPrimaryButton,
+                                            isAddingBookId && styles.searchButtonDisabled,
+                                        ]}
+                                        onPress={() => void handleConfirmAddSearchedBook()}
+                                        disabled={Boolean(isAddingBookId)}
+                                    >
+                                        <Text style={styles.modalPrimaryButtonText}>
+                                            {isAddingBookId
+                                                ? t("addBook.adding")
+                                                : t("addBook.add")}
                                         </Text>
                                     </Pressable>
                                 </View>
@@ -756,6 +1033,53 @@ function createStyles(theme: AppTheme) {
         },
         genreChipTextSelected: {
             color: "#FFFFFF",
+        },
+        statusSection: {
+            gap: theme.spacing.sm,
+        },
+        statusSectionTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        statusChipWrap: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: theme.spacing.xs,
+        },
+        statusChip: {
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: theme.colors.surface,
+        },
+        statusChipSelected: {
+            backgroundColor: theme.colors.accent,
+            borderColor: theme.colors.accent,
+        },
+        statusChipText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+        statusChipTextSelected: {
+            color: "#FFFFFF",
+        },
+        dnfReasonInput: {
+            minHeight: 84,
+            textAlignVertical: "top",
+        },
+        selectedBookPreview: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
         },
     });
 }

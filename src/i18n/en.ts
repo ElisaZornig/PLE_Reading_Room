@@ -129,7 +129,22 @@ const en = {
         delete: "Delete",
         loading: "Loading...",
     },
-    addBook: {
+        bookStatus: {
+            toRead: "Want to read",
+            reading: "Reading",
+            finished: "Finished",
+            dnf: "DNF",
+        },
+        addBook: {
+            chooseStatusTitle: "Add book",
+            statusLabel: "Where do you want to place this book?",
+            progressPlaceholder: "Progress in %, for example 35",
+            ratingPlaceholder: "Stars, for example 4 or 4.5",
+            dnfProgressPlaceholder: "Where did you stop? For example 40%",
+            dnfReasonPlaceholder: "Why did you stop? Optional",
+            progressRequired: "Fill in your progress when setting the book to reading.",
+            progressInvalid: "Enter progress between 0 and 100.",
+            ratingInvalid: "Enter a rating between 0 and 5.",
         subtitle: "Search for a book to add to your library.",
         searchTitle: "Search for a book",
         searchDescription: "Search for a title or author and add it to your library.",

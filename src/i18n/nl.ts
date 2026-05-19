@@ -127,7 +127,22 @@ const nl = {
         edit: "Bewerken",
         delete: "Verwijderen",
     },
-    addBook: {
+        bookStatus: {
+            toRead: "Wil lezen",
+            reading: "Bezig",
+            finished: "Gelezen",
+            dnf: "DNF",
+        },
+        addBook: {
+            chooseStatusTitle: "Boek toevoegen",
+            statusLabel: "Waar wil je dit boek zetten?",
+            progressPlaceholder: "Voortgang in %, bijvoorbeeld 35",
+            ratingPlaceholder: "Sterren, bijvoorbeeld 4 of 4,5",
+            dnfProgressPlaceholder: "Waar ben je gestopt? Bijvoorbeeld 40%",
+            dnfReasonPlaceholder: "Waarom ben je gestopt? Optioneel",
+            progressRequired: "Vul je voortgang in als je het boek op bezig zet.",
+            progressInvalid: "Vul een voortgang tussen 0 en 100 in.",
+            ratingInvalid: "Vul een rating tussen 0 en 5 in.",
         subtitle: "Zoek een boek om toe te voegen aan je bibliotheek.",
         searchTitle: "Zoek een boek",
         searchDescription: "Zoek op titel of auteur en voeg het toe aan je bibliotheek.",

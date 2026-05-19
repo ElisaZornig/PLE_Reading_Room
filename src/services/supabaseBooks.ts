@@ -1,6 +1,17 @@
 import { supabase } from "./supabase";
-import { SearchBookResult } from "../types/book";
-import { normalizeOpenLibraryWorkId } from "../utils/openLibrary";
+import type {
+    BookStatus,
+    ProgressMode,
+    SearchBookResult,
+} from "@/src/types/book";import { normalizeOpenLibraryWorkId } from "../utils/openLibrary";
+
+type AddBookToUserLibraryOptions = {
+    status?: BookStatus;
+    progress?: number;
+    progressMode?: ProgressMode;
+    rating?: number;
+    dnfReason?: string;
+};
 
 export async function getCurrentUserId() {
     const {
@@ -42,31 +53,26 @@ export async function upsertBookFromSearchResult(book: SearchBookResult) {
     return data;
 }
 
-export async function addBookToUserLibrary(bookId: string, userId: string) {
-    const { data, error } = await supabase
-        .from("user_books")
-        .upsert(
-            {
-                user_id: userId,
-                book_id: bookId,
-                status: "toRead",
-                progress: 0,
-                progress_mode: "percentage",
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-            },
-            {
-                onConflict: "user_id,book_id",
-            }
-        )
-        .select()
-        .single();
+export async function addBookToUserLibrary(
+    bookId: string,
+    userId: string,
+    options: AddBookToUserLibraryOptions = {}
+) {
+    const status = options.status ?? "toRead";
+
+    const { error } = await supabase.from("user_books").insert({
+        book_id: bookId,
+        user_id: userId,
+        status,
+        progress: options.progress ?? (status === "finished" ? 100 : 0),
+        progress_mode: options.progressMode ?? "percentage",
+        rating: options.rating ?? null,
+        dnf_reason: options.dnfReason ?? null,
+    });
 
     if (error) {
         throw error;
     }
-
-    return data;
 }
 
 export async function addManualBookToUserLibrary({
@@ -74,11 +80,21 @@ export async function addManualBookToUserLibrary({
                                                      author,
                                                      firstPublishYear,
                                                      genres,
+                                                     status,
+                                                     progress,
+                                                     progressMode,
+                                                     rating,
+                                                     dnfReason,
                                                  }: {
     title: string;
     author: string;
     firstPublishYear?: number;
     genres?: string[];
+    status?: BookStatus;
+    progress?: number;
+    progressMode?: ProgressMode;
+    rating?: number;
+    dnfReason?: string;
 }) {
     const userId = await getCurrentUserId();
 
@@ -92,7 +108,13 @@ export async function addManualBookToUserLibrary({
         genres: genres ?? [],
     });
 
-    await addBookToUserLibrary(savedBook.id, userId);
+    await addBookToUserLibrary(savedBook.id, userId, {
+        status,
+        progress,
+        progressMode,
+        rating,
+        dnfReason,
+    });
 
     return savedBook;
 }
