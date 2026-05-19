@@ -21,10 +21,14 @@ export type ClubOverview = {
     memberCount: number;
     averageProgress: number;
     activeQuestionCount: number;
+    commentVisibilityMode: CommentVisibilityMode;
     currentBook: ClubBook | null;
     nextMeeting: ClubMeeting | null;
     currentUserRole: "owner" | "member";
 };
+
+export type CommentVisibilityMode = "always" | "sameProgress" | "meetingDay";
+
 function normalizeInviteCode(code: string) {
     return code.trim().toUpperCase();
 }
@@ -86,7 +90,7 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
     const [clubResult, membersResult, meetingResult] = await Promise.all([
         supabase
             .from('book_clubs')
-            .select('id, name, current_book_id, invite_code')
+            .select('id, name, current_book_id, invite_code, comment_visibility_mode')
             .eq('id', clubId)
             .maybeSingle(),
         supabase
@@ -137,8 +141,7 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
             supabase
                 .from('discussion_questions')
                 .select('id', { count: 'exact', head: true })
-                .eq('club_id', clubId)
-                .eq('book_id', club.current_book_id),
+                .eq('club_id', clubId),
             memberIds.length > 0
                 ? supabase
                     .from('user_books')
@@ -208,6 +211,8 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
                 location: meetingResult.data.location,
             }
             : null,
+        commentVisibilityMode:
+            (club.comment_visibility_mode as CommentVisibilityMode | null) ?? "sameProgress",
     };
 }
 
@@ -391,6 +396,19 @@ export async function updateCurrentBookInSupabase(input: {
         throw new Error("No book selected.");
     }
 
+    const { data: existingClub, error: existingClubError } = await supabase
+        .from("book_clubs")
+        .select("current_book_id")
+        .eq("id", clubId)
+        .maybeSingle();
+
+    if (existingClubError) {
+        throw existingClubError;
+    }
+
+    const previousBookId = existingClub?.current_book_id ?? null;
+    const shouldClearReplies = previousBookId !== bookId;
+
     const { error: updateClubError } = await supabase
         .from("book_clubs")
         .update({
@@ -400,6 +418,10 @@ export async function updateCurrentBookInSupabase(input: {
 
     if (updateClubError) {
         throw updateClubError;
+    }
+
+    if (shouldClearReplies) {
+        await clearDiscussionRepliesForClubInSupabase({ clubId });
     }
 
     const { data: members, error: membersError } = await supabase
@@ -505,11 +527,7 @@ export async function fetchDiscussionQuestionsForClub(input: {
         .from("discussion_questions")
         .select("id, question, created_at, created_by")
         .eq("club_id", clubId)
-        .order("created_at", { ascending: false });
-
-    if (bookId) {
-        query = query.eq("book_id", bookId);
-    }
+        .order("created_at", { ascending: true });
 
     const { data, error } = await query;
 
@@ -912,13 +930,33 @@ export async function setCurrentClubBookAndAddToTbr(input: {
     clubId: string;
     bookId: string;
 }) {
+    const clubId = input.clubId.trim();
+    const bookId = input.bookId.trim();
+
+    const { data: existingClub, error: existingClubError } = await supabase
+        .from("book_clubs")
+        .select("current_book_id")
+        .eq("id", clubId)
+        .maybeSingle();
+
+    if (existingClubError) {
+        throw existingClubError;
+    }
+
+    const previousBookId = existingClub?.current_book_id ?? null;
+    const shouldClearReplies = previousBookId !== bookId;
+
     const { error } = await supabase.rpc("set_current_club_book_and_add_to_tbr", {
-        p_club_id: input.clubId,
-        p_book_id: input.bookId,
+        p_club_id: clubId,
+        p_book_id: bookId,
     });
 
     if (error) {
         throw error;
+    }
+
+    if (shouldClearReplies) {
+        await clearDiscussionRepliesForClubInSupabase({ clubId });
     }
 }
 
@@ -946,4 +984,61 @@ export async function leaveClubInSupabase(clubId: string): Promise<LeaveClubResu
         action: data?.action ?? "left",
         newOwnerUserId: data?.newOwnerUserId ?? null,
     };
+}
+
+export async function clearDiscussionRepliesForClubInSupabase(input: {
+    clubId: string;
+}) {
+    const clubId = input.clubId.trim();
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    const { error } = await supabase
+        .from("discussion_replies")
+        .delete()
+        .eq("club_id", clubId);
+
+    if (error) {
+        throw error;
+    }
+}
+
+export async function updateClubCommentVisibilityModeInSupabase(input: {
+    clubId: string;
+    mode: CommentVisibilityMode;
+}) {
+    const userId = await getCurrentSupabaseUserId();
+    const clubId = input.clubId.trim();
+
+    if (!clubId) {
+        throw new Error("No club found.");
+    }
+
+    const { data: membership, error: membershipError } = await supabase
+        .from("book_club_members")
+        .select("role")
+        .eq("club_id", clubId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (membershipError) {
+        throw membershipError;
+    }
+
+    if (membership?.role !== "owner") {
+        throw new Error("Only the club owner can change this setting.");
+    }
+
+    const { error } = await supabase
+        .from("book_clubs")
+        .update({
+            comment_visibility_mode: input.mode,
+        })
+        .eq("id", clubId);
+
+    if (error) {
+        throw error;
+    }
 }

@@ -18,7 +18,7 @@ import LottieView from "lottie-react-native";
 import { BookCover } from "@/src/components/BookCover";
 import { CoverPlaceholder } from "@/src/components/CoverPlaceholder";
 import { t } from "@/src/i18n";
-import { searchBooks } from "@/src/services/booksApi";
+import {fetchBookDetailsByWorkId, searchBooks} from "@/src/services/booksApi";
 import {
     addBookToUserLibrary, addManualBookToUserLibrary,
     getCurrentUserId,
@@ -63,6 +63,9 @@ export default function AddBookScreen() {
     const [selectedDnfReason, setSelectedDnfReason] = useState("");
     const [bookToAddWithStatus, setBookToAddWithStatus] =
         useState<SearchBookResult | null>(null);
+    const [selectedBookInfo, setSelectedBookInfo] =
+        useState<SearchBookResult | null>(null);
+    const [isLoadingBookDetails, setIsLoadingBookDetails] = useState(false);
 
     const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
 
@@ -391,6 +394,38 @@ export default function AddBookScreen() {
         };
     }
 
+    async function handleOpenBookInfo(book: SearchBookResult) {
+        setSelectedBookInfo(book);
+
+        if (book.description) return;
+
+        try {
+            setIsLoadingBookDetails(true);
+
+            const workId = getOpenLibraryWorkId(book.id);
+            const details = await fetchBookDetailsByWorkId(workId);
+
+            const updatedBook = {
+                ...book,
+                description: details.description,
+            };
+
+            setSelectedBookInfo(updatedBook);
+
+            setResults((currentResults) =>
+                currentResults.map((result) =>
+                    getOpenLibraryWorkId(result.id) === workId
+                        ? updatedBook
+                        : result
+                )
+            );
+        } catch (error) {
+            console.error("Fout bij ophalen van boekdetails:", error);
+        } finally {
+            setIsLoadingBookDetails(false);
+        }
+    }
+
     const manualBookCard = hasSearched ? (
         <View style={styles.manualBookCard}>
             <Text style={styles.manualBookTitle}>
@@ -475,45 +510,56 @@ export default function AddBookScreen() {
 
                             return (
                                 <View key={book.id} style={styles.resultCard}>
-                                    {book.cover ? (
-                                        <BookCover title={book.title} cover={book.cover} small />
-                                    ) : (
-                                        <CoverPlaceholder title={book.title} />
-                                    )}
-
-                                    <View style={styles.bookInfo}>
-                                        <Text style={styles.bookTitle}>{book.title}</Text>
-                                        <Text style={styles.bookAuthor}>{book.author}</Text>
-
-                                        {book.firstPublishYear ? (
-                                            <Text style={styles.bookMeta}>
-                                                {book.firstPublishYear}
-                                            </Text>
-                                        ) : null}
-                                    </View>
-
                                     <Pressable
-                                        style={[
-                                            styles.addSmallButton,
-                                            isAdded && styles.addSmallButtonAdded,
-                                            isAdding && styles.addSmallButtonDisabled,
-                                        ]}
-                                        onPress={() => void handleToggleBook(book)}
-                                        disabled={isAdding}
+                                        style={styles.resultBookPressArea}
+                                        onPress={() => void handleOpenBookInfo(book)}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.addSmallButtonText,
-                                                isAdded && styles.addSmallButtonTextAdded,
-                                            ]}
-                                        >
-                                            {isAdding
-                                                ? t("addBook.adding")
-                                                : isAdded
-                                                    ? t("addBook.added")
-                                                    : t("addBook.add")}
-                                        </Text>
+                                        {book.cover ? (
+                                            <BookCover title={book.title} cover={book.cover} small />
+                                        ) : (
+                                            <CoverPlaceholder title={book.title} />
+                                        )}
+
+                                        <View style={styles.bookInfo}>
+                                            <Text style={styles.bookTitle}>{book.title}</Text>
+                                            <Text style={styles.bookAuthor}>{book.author}</Text>
+
+                                            {book.firstPublishYear ? (
+                                                <Text style={styles.bookMeta}>
+                                                    {book.firstPublishYear}
+                                                </Text>
+                                            ) : null}
+
+                                            <Text style={styles.tapForDetailsText}>
+                                                {t("addBook.tapForDetails")}
+                                            </Text>
+                                        </View>
                                     </Pressable>
+
+                                    <View style={styles.resultActions}>
+                                        <Pressable
+                                            style={[
+                                                styles.addSmallButton,
+                                                isAdded && styles.addSmallButtonAdded,
+                                                isAdding && styles.addSmallButtonDisabled,
+                                            ]}
+                                            onPress={() => void handleToggleBook(book)}
+                                            disabled={isAdding}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.addSmallButtonText,
+                                                    isAdded && styles.addSmallButtonTextAdded,
+                                                ]}
+                                            >
+                                                {isAdding
+                                                    ? t("addBook.adding")
+                                                    : isAdded
+                                                        ? t("addBook.added")
+                                                        : t("addBook.add")}
+                                            </Text>
+                                        </Pressable>
+                                    </View>
                                 </View>
                             );
                         })}
@@ -748,6 +794,153 @@ export default function AddBookScreen() {
                                         </Text>
                                     </Pressable>
                                 </View>
+                            </View>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+            <Modal
+                visible={Boolean(selectedBookInfo)}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedBookInfo(null)}
+            >
+                <KeyboardAvoidingView
+                    style={styles.modalKeyboardView}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                >
+                    <View style={styles.modalOverlay}>
+                        <ScrollView
+                            contentContainerStyle={styles.modalScrollContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalCard}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>
+                                        {t("addBook.bookDetailsTitle")}
+                                    </Text>
+
+                                    <Pressable
+                                        onPress={() => setSelectedBookInfo(null)}
+                                        style={styles.modalCloseButton}
+                                    >
+                                        <Feather
+                                            name="x"
+                                            size={20}
+                                            color={theme.colors.textMuted}
+                                        />
+                                    </Pressable>
+                                </View>
+
+                                {selectedBookInfo ? (
+                                    <>
+                                        <View style={styles.selectedBookPreview}>
+                                            {selectedBookInfo.cover ? (
+                                                <BookCover
+                                                    title={selectedBookInfo.title}
+                                                    cover={selectedBookInfo.cover}
+                                                    small
+                                                />
+                                            ) : (
+                                                <CoverPlaceholder title={selectedBookInfo.title} />
+                                            )}
+
+                                            <View style={styles.bookInfo}>
+                                                <Text style={styles.bookTitle}>
+                                                    {selectedBookInfo.title}
+                                                </Text>
+                                                <Text style={styles.bookAuthor}>
+                                                    {selectedBookInfo.author}
+                                                </Text>
+
+                                                {selectedBookInfo.firstPublishYear ? (
+                                                    <Text style={styles.bookMeta}>
+                                                        {t("addBook.firstPublished", {
+                                                            year: selectedBookInfo.firstPublishYear,
+                                                        })}
+                                                    </Text>
+                                                ) : null}
+                                            </View>
+                                        </View>
+
+                                        {selectedBookInfo.genres?.length ? (
+                                            <View style={styles.modalSection}>
+                                                <Text style={styles.modalSectionLabel}>
+                                                    {t("addBook.genresLabel")}
+                                                </Text>
+
+                                                <View style={styles.genreChipWrap}>
+                                                    {selectedBookInfo.genres.map((genre) => (
+                                                        <View key={genre} style={styles.genreChip}>
+                                                            <Text style={styles.genreChipText}>
+                                                                {genre}
+                                                            </Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        ) : null}
+                                        {isLoadingBookDetails ? (
+                                            <View style={styles.modalSection}>
+                                                <Text style={styles.modalSectionText}>
+                                                    {t("addBook.loadingDetails")}
+                                                </Text>
+                                            </View>
+                                        ) : selectedBookInfo.description ? (
+                                            <View style={styles.modalSection}>
+                                                <Text style={styles.modalSectionLabel}>
+                                                    {t("addBook.aboutThisBook")}
+                                                </Text>
+                                                <Text style={styles.modalSectionText}>
+                                                    {selectedBookInfo.description}
+                                                </Text>
+                                            </View>
+                                        ) : (
+                                            <View style={styles.modalSection}>
+                                                <Text style={styles.modalSectionLabel}>
+                                                    {t("addBook.aboutThisBook")}
+                                                </Text>
+                                                <Text style={styles.modalSectionText}>
+                                                    {t("addBook.noDescription")}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <View style={styles.modalSection}>
+                                            <Text style={styles.modalSectionLabel}>
+                                                {t("addBook.sourceLabel")}
+                                            </Text>
+                                            <Text style={styles.modalSectionText}>
+                                                {t("addBook.openLibrarySourceText")}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.modalButtonRow}>
+                                            <Pressable
+                                                style={styles.modalSecondaryButton}
+                                                onPress={() => setSelectedBookInfo(null)}
+                                            >
+                                                <Text style={styles.modalSecondaryButtonText}>
+                                                    {t("common.close")}
+                                                </Text>
+                                            </Pressable>
+
+                                            <Pressable
+                                                style={styles.modalPrimaryButton}
+                                                onPress={() => {
+                                                    const book = selectedBookInfo;
+                                                    setSelectedBookInfo(null);
+                                                    resetAddBookDetails();
+                                                    setBookToAddWithStatus(book);
+                                                }}
+                                            >
+                                                <Text style={styles.modalPrimaryButtonText}>
+                                                    {t("addBook.add")}
+                                                </Text>
+                                            </Pressable>
+                                        </View>
+                                    </>
+                                ) : null}
                             </View>
                         </ScrollView>
                     </View>
@@ -1080,6 +1273,51 @@ function createStyles(theme: AppTheme) {
             borderWidth: 1,
             borderColor: theme.colors.border,
             padding: theme.spacing.md,
+        },
+        modalHeader: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+        },
+        modalCloseButton: {
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        modalSection: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+            gap: 4,
+        },
+        modalSectionLabel: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        modalSectionText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+        resultBookPressArea: {
+            flex: 1,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.md,
+        },
+        resultActions: {
+            alignItems: "flex-end",
+            justifyContent: "center",
+        },
+        tapForDetailsText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+            marginTop: 2,
         },
     });
 }

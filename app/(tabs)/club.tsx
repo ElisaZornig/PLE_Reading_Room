@@ -1,13 +1,11 @@
 import { Feather } from "@expo/vector-icons";
-import {router, useFocusEffect, useLocalSearchParams} from "expo-router";
+import {router, useLocalSearchParams} from "expo-router";
 import {useCallback, useEffect, useState} from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Progress from "react-native-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import LottieView from "lottie-react-native";
-
-import { AppHeader } from "@/src/components/AppHeader";
 import { BookCover } from "@/src/components/BookCover";
 import { t } from "@/src/i18n";
 import {
@@ -15,7 +13,8 @@ import {
     type ClubOverview,
     type ClubMemberProgress,
     fetchClubMemberProgress,
-    leaveClubInSupabase, fetchDiscussionQuestionsForClub,
+    leaveClubInSupabase, fetchDiscussionQuestionsForClub, updateClubCommentVisibilityModeInSupabase,
+    CommentVisibilityMode,
 } from "@/src/services/supabaseClub";
 import { createPageStyles } from "@/src/styles/pageStyles";
 import {AppTheme, darkTheme} from "@/src/theme/theme";
@@ -24,6 +23,7 @@ import { showAppAlert, showAppConfirm } from "@/src/utils/appAlert";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
 import {AvatarBubble} from "@/src/components/AvatarBubble";
+import {COMMENT_VISIBILITY_OPTIONS} from "@/src/constants/visibilityOptions";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -38,7 +38,40 @@ export default function ClubScreen() {
     const [isManageExpanded, setIsManageExpanded] = useState(false);
     const [activeQuestionCount, setActiveQuestionCount] = useState(0);
     const params = useLocalSearchParams<{ refresh?: string }>();
+    const [isSavingCommentVisibility, setIsSavingCommentVisibility] = useState(false);
 
+    async function handleUpdateCommentVisibility(mode: CommentVisibilityMode) {
+        if (!club || club.currentUserRole !== "owner" || isSavingCommentVisibility) {
+            return;
+        }
+
+        try {
+            setIsSavingCommentVisibility(true);
+
+            await updateClubCommentVisibilityModeInSupabase({
+                clubId: club.id,
+                mode,
+            });
+
+            setClub((currentClub) =>
+                currentClub
+                    ? {
+                        ...currentClub,
+                        commentVisibilityMode: mode,
+                    }
+                    : currentClub
+            );
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : t("club.commentVisibilitySaveErrorMessage");
+
+            showAppAlert(t("club.commentVisibilitySaveErrorTitle"), message);
+        } finally {
+            setIsSavingCommentVisibility(false);
+        }
+    }
     async function handleCopyInviteCode() {
         if (!club?.inviteCode) return;
 
@@ -241,6 +274,10 @@ export default function ClubScreen() {
 
     const daysUntilMeeting = getDaysUntil(club.nextMeeting?.meetingDate);
     const owner = memberProgress.find((member) => member.role === "owner");
+    const selectedCommentVisibilityOption =
+        COMMENT_VISIBILITY_OPTIONS.find(
+            (option) => option.value === club.commentVisibilityMode
+        ) ?? COMMENT_VISIBILITY_OPTIONS[1];
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
@@ -608,6 +645,64 @@ export default function ClubScreen() {
                                 <Text style={styles.infoValue}>
                                     {club.memberCount} {club.memberCount === 1 ? t("club.member") : t("club.members")}
                                 </Text>
+                            </View>
+
+                            <View style={styles.commentVisibilitySection}>
+                                {club.currentUserRole === "owner" ? (
+                                    <>
+                                        <Text style={styles.infoLabel}>
+                                            {t("club.commentVisibilityTitle")}
+                                        </Text>
+
+                                        <View style={styles.visibilityToggleRow}>
+                                            {COMMENT_VISIBILITY_OPTIONS.map((option) => {
+                                                const isSelected = club.commentVisibilityMode === option.value;
+
+                                                return (
+                                                    <Pressable
+                                                        key={option.value}
+                                                        style={[
+                                                            styles.visibilityToggleOption,
+                                                            isSelected && styles.visibilityToggleOptionSelected,
+                                                            isSavingCommentVisibility && styles.disabledButton,
+                                                        ]}
+                                                        onPress={() => handleUpdateCommentVisibility(option.value)}
+                                                        disabled={isSavingCommentVisibility}
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.visibilityToggleText,
+                                                                isSelected && styles.visibilityToggleTextSelected,
+                                                            ]}
+                                                        >
+                                                            {t(option.labelKey)}
+                                                        </Text>
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+
+                                        <Text style={styles.linkSubtitle}>
+                                            {t(selectedCommentVisibilityOption.descriptionKey)}
+                                        </Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <View style={styles.infoRow}>
+                                            <Text style={styles.infoLabel}>
+                                                {t("club.commentVisibilityTitle")}
+                                            </Text>
+
+                                            <Text style={styles.infoValue}>
+                                                {t(selectedCommentVisibilityOption.labelKey)}
+                                            </Text>
+                                        </View>
+
+                                        <Text style={styles.linkSubtitle}>
+                                            {t(selectedCommentVisibilityOption.descriptionKey)}
+                                        </Text>
+                                    </>
+                                )}
                             </View>
 
                             <Pressable
@@ -1090,6 +1185,43 @@ function createStyles(theme: AppTheme) {
             alignItems: "center",
             gap: 6,
             marginBottom: theme.spacing.sm,
+        },
+        commentVisibilitySection: {
+            gap: theme.spacing.sm,
+        },
+
+        visibilityToggleRow: {
+            flexDirection: "row",
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: 4,
+            gap: 4,
+        },
+
+        visibilityToggleOption: {
+            flex: 1,
+            borderRadius: theme.radius.pill,
+            paddingVertical: 9,
+            paddingHorizontal: 8,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        visibilityToggleOptionSelected: {
+            backgroundColor: theme.colors.accent,
+        },
+
+        visibilityToggleText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+            textAlign: "center",
+        },
+
+        visibilityToggleTextSelected: {
+            color: "#FFFFFF",
         },
 
     });

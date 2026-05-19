@@ -31,7 +31,7 @@ import {
     updateDiscussionReplyInSupabase,
     deleteDiscussionReplyInSupabase,
     deleteDiscussionQuestionInSupabase,
-    updateDiscussionQuestionInSupabase,
+    updateDiscussionQuestionInSupabase, CommentVisibilityMode,
 } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
@@ -43,6 +43,9 @@ import {createPageStyles} from "@/src/styles/pageStyles";
 import {t} from "@/src/i18n";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {showAppAlert, showAppConfirm} from "@/src/utils/appAlert";
+
+type QuestionSortOrder = "oldestFirst" | "newestFirst";
+
 
 export default function DiscussionScreen() {
     const theme = useAppTheme();
@@ -78,6 +81,12 @@ export default function DiscussionScreen() {
     const [expandedQuestions, setExpandedQuestions] = useState<Record<string, boolean>>({});
     const [currentUserProgress, setCurrentUserProgress] = useState(0);
     const [currentBookId, setCurrentBookId] = useState<string | null>(null);
+    const [questionSortOrder, setQuestionSortOrder] =
+        useState<QuestionSortOrder>("oldestFirst");
+    const [commentVisibilityMode, setCommentVisibilityMode] =
+        useState<CommentVisibilityMode>("sameProgress");
+
+    const [nextMeetingDate, setNextMeetingDate] = useState<string | null>(null);
 
     const loadDiscussion = useCallback(async (showLoader = false) => {
         try {
@@ -95,13 +104,15 @@ export default function DiscussionScreen() {
                 getCurrentSupabaseUserId(),
             ]);
 
+            setCommentVisibilityMode(clubData?.commentVisibilityMode ?? "sameProgress");
+            setNextMeetingDate(clubData?.nextMeeting?.meetingDate ?? null);
+
             const currentBookId = clubData?.currentBook?.id ?? null;
             setCurrentBookId(currentBookId);
 
             const [questionData, progressData] = await Promise.all([
                 fetchDiscussionQuestionsForClub({
                     clubId: clubId ?? "",
-                    bookId: currentBookId,
                 }),
                 currentBookId
                     ? fetchClubMemberProgress({
@@ -164,6 +175,42 @@ export default function DiscussionScreen() {
         }
     }
 
+    function isMeetingDayOrLater(isoDate: string | null) {
+        if (!isoDate) return false;
+
+        const today = new Date();
+        const meetingDate = new Date(isoDate);
+
+        today.setHours(0, 0, 0, 0);
+        meetingDate.setHours(0, 0, 0, 0);
+
+        return today.getTime() >= meetingDate.getTime();
+    }
+
+    function canViewDiscussionReply({
+                                        isOwnReply,
+                                        replyProgress,
+                                    }: {
+        isOwnReply: boolean;
+        replyProgress: number;
+    }) {
+        if (isOwnReply) {
+            return true;
+        }
+
+        switch (commentVisibilityMode) {
+            case "always":
+                return true;
+
+            case "meetingDay":
+                return isMeetingDayOrLater(nextMeetingDate);
+
+            case "sameProgress":
+            default:
+                return currentUserProgress >= replyProgress;
+        }
+    }
+
     async function handleAddQuestion() {
         try {
             if (!newQuestion.trim()) {
@@ -175,7 +222,6 @@ export default function DiscussionScreen() {
 
             await createDiscussionQuestionInSupabase({
                 clubId: clubId ?? "",
-                bookId: currentBookId,
                 question: newQuestion,
             });
 
@@ -203,7 +249,10 @@ export default function DiscussionScreen() {
         const draft = replyDrafts[questionId]?.trim() ?? "";
 
         if (!draft) {
-            Alert.alert("Add a reply", "Please enter a reply first.");
+            showAppAlert(
+                t("discussion.emptyReplyTitle"),
+                t("discussion.emptyReplyMessage")
+            );
             return;
         }
 
@@ -275,6 +324,29 @@ export default function DiscussionScreen() {
         } finally {
             setSavingEditedQuestionId(null);
         }
+    }
+
+    function getHiddenReplyContent(replyProgress: number) {
+        if (commentVisibilityMode === "meetingDay") {
+            if (!nextMeetingDate) {
+                return {
+                    title: t("discussion.hiddenReplyNoMeetingTitle"),
+                    text: t("discussion.hiddenReplyNoMeetingText"),
+                };
+            }
+
+            return {
+                title: t("discussion.hiddenReplyMeetingDayTitle"),
+                text: t("discussion.hiddenReplyMeetingDayText"),
+            };
+        }
+
+        return {
+            title: t("discussion.hiddenReplyProgressTitle"),
+            text: t("discussion.hiddenReplyProgressText", {
+                progress: replyProgress,
+            }),
+        };
     }
 
     async function handleDeleteQuestion(questionId: string) {
@@ -409,6 +481,19 @@ export default function DiscussionScreen() {
             setClearingRepliesForQuestionId(null);
         }
     }
+    const sortedQuestions = useMemo(() => {
+        return [...questions].sort((firstQuestion, secondQuestion) => {
+            const firstDate = new Date(firstQuestion.createdAt).getTime();
+            const secondDate = new Date(secondQuestion.createdAt).getTime();
+
+            if (questionSortOrder === "oldestFirst") {
+                return firstDate - secondDate;
+            }
+
+            return secondDate - firstDate;
+        });
+    }, [questions, questionSortOrder]);
+
     const questionModalContent = (
         <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
@@ -457,16 +542,46 @@ export default function DiscussionScreen() {
             </View>
         </View>
     );
+
+
+    const questionSortControl =
+        questions.length > 1 ? (
+            <View style={styles.questionSortRow}>
+                <Pressable
+                    style={styles.questionSortButton}
+                    onPress={() =>
+                        setQuestionSortOrder((currentOrder) =>
+                            currentOrder === "oldestFirst"
+                                ? "newestFirst"
+                                : "oldestFirst"
+                        )
+                    }
+                >
+                    <Feather
+                        name={
+                            questionSortOrder === "oldestFirst"
+                                ? "arrow-down"
+                                : "arrow-up"
+                        }
+                        size={16}
+                        color={theme.colors.accent}
+                    />
+
+                    <Text style={styles.questionSortButtonText}>
+                        {questionSortOrder === "oldestFirst"
+                            ? t("discussion.oldestFirst")
+                            : t("discussion.newestFirst")}
+                    </Text>
+                </Pressable>
+            </View>
+        ) : null;
+
     const screenContent = (
         <View style={styles.screen}>
-            <View style={styles.header}>
                 <View style={styles.titleRow}>
 
 
                 </View>
-
-                <Text style={pageStyles.pageSubtitle}>{t("discussion.subtitle")}</Text>
-            </View>
 
 
             {isLoading ? (
@@ -486,8 +601,11 @@ export default function DiscussionScreen() {
                     </Text>
                 </View>
             ) : (
+                <>
+                {questionSortControl}
+
                 <FlatList
-                    data={questions}
+                    data={sortedQuestions}
                     keyExtractor={(item) => item.id}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
@@ -498,6 +616,7 @@ export default function DiscussionScreen() {
                         const isSavingReply = savingReplyForQuestionId === item.id;
                         const isClearingReplies = clearingRepliesForQuestionId === item.id;
                         const isRepliesExpanded = Boolean(expandedQuestions[item.id]);
+                        const isReplyDraftEmpty = replyDraft.trim().length === 0;
 
                         return (
                             <View style={styles.questionCard}>
@@ -545,7 +664,9 @@ export default function DiscussionScreen() {
                                             <>
                                                 <Text style={styles.questionText}>{item.question}</Text>
                                                 <Text style={styles.questionMeta}>
-                                                    Added {formatQuestionDate(item.createdAt)}
+                                                    {t("discussion.questionAddedOn", {
+                                                        date: formatQuestionDate(item.createdAt),
+                                                    })}
                                                 </Text>
 
                                                 {item.createdBy === currentUserId || clubRole === "owner" ? (
@@ -596,8 +717,10 @@ export default function DiscussionScreen() {
                                                 {replies.map((reply) => {
                                                     const isOwnReply = reply.createdBy === currentUserId;
                                                     const replyProgress = reply.progressAtReply ?? 0;
-                                                    const canViewReply = isOwnReply || currentUserProgress >= replyProgress;
-
+                                                    const canViewReply = canViewDiscussionReply({
+                                                        isOwnReply,
+                                                        replyProgress,
+                                                    });
                                                     const authorLabel =
                                                         isOwnReply
                                                             ? t("discussion.you")
@@ -688,14 +811,20 @@ export default function DiscussionScreen() {
                                                                     <Feather name="lock" size={16} color={theme.colors.accent} />
 
                                                                     <View style={styles.hiddenReplyTextWrap}>
-                                                                        <Text style={styles.hiddenReplyTitle}>
-                                                                            {t("discussion.hiddenReplyTitle")}
-                                                                        </Text>
-                                                                        <Text style={styles.hiddenReplyText}>
-                                                                            {t("discussion.hiddenReplyText", {
-                                                                                progress: replyProgress,
-                                                                            })}
-                                                                        </Text>
+                                                                        {(() => {
+                                                                            const hiddenReplyContent = getHiddenReplyContent(replyProgress);
+
+                                                                            return (
+                                                                                <>
+                                                                                    <Text style={styles.hiddenReplyTitle}>
+                                                                                        {hiddenReplyContent.title}
+                                                                                    </Text>
+                                                                                    <Text style={styles.hiddenReplyText}>
+                                                                                        {hiddenReplyContent.text}
+                                                                                    </Text>
+                                                                                </>
+                                                                            );
+                                                                        })()}
                                                                     </View>
                                                                 </View>
                                                             )}
@@ -737,9 +866,12 @@ export default function DiscussionScreen() {
                                         />
 
                                         <Pressable
-                                            style={[styles.replyButton, isSavingReply && styles.primaryButtonDisabled]}
+                                            style={[
+                                                styles.replyButton,
+                                                (isSavingReply || isReplyDraftEmpty) && styles.primaryButtonDisabled,
+                                            ]}
                                             onPress={() => handleAddReply(item.id)}
-                                            disabled={isSavingReply}
+                                            disabled={isSavingReply || isReplyDraftEmpty}
                                         >
                                             <Text style={styles.replyButtonText}>
                                                 {isSavingReply ? t("discussion.savingShort") : t("discussion.reply")}
@@ -751,6 +883,7 @@ export default function DiscussionScreen() {
                         );
                     }}
                 />
+                </>
             )}
 
             <Modal
@@ -1164,6 +1297,33 @@ function createStyles(theme: AppTheme) {
         },
 
         repliesToggleText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+        questionSortRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.sm,
+            marginBottom: theme.spacing.md,
+        },
+        questionSortLabel: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+        },
+        questionSortButton: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.xs,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+        questionSortButtonText: {
             color: theme.colors.accent,
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,

@@ -32,4 +32,5 @@ export type SearchBookResult = {
     cover?: string;
     firstPublishYear?: number;
     genres?: string[];
+    description?: string;
 };

@@ -132,3 +132,41 @@ export async function getSubjectBooks(
         firstPublishYear: work.first_publish_year,
     }));
 }
+
+type OpenLibraryWorkDetails = {
+    description?: string | { value?: string };
+    subjects?: string[];
+};
+
+function getOpenLibraryDescription(
+    description: OpenLibraryWorkDetails["description"]
+) {
+    if (!description) return undefined;
+
+    if (typeof description === "string") {
+        return description;
+    }
+
+    return description.value;
+}
+
+export async function fetchBookDetailsByWorkId(workId: string) {
+    const normalizedWorkPath = workId.startsWith("/works/")
+        ? workId
+        : `/works/${workId}`;
+
+    const response = await fetch(
+        `https://openlibrary.org${normalizedWorkPath}.json`
+    );
+
+    if (!response.ok) {
+        throw new Error("Boekdetails ophalen is mislukt.");
+    }
+
+    const data: OpenLibraryWorkDetails = await response.json();
+
+    return {
+        description: getOpenLibraryDescription(data.description),
+        subjects: data.subjects ?? [],
+    };
+}
