@@ -26,6 +26,7 @@ export async function upsertBookFromSearchResult(book: SearchBookResult) {
                 cover_url: book.cover ?? null,
                 first_publish_year: book.firstPublishYear ?? null,
                 updated_at: new Date().toISOString(),
+                genres: book.genres ?? [],
             },
             {
                 onConflict: "open_library_work_id",
@@ -66,4 +67,32 @@ export async function addBookToUserLibrary(bookId: string, userId: string) {
     }
 
     return data;
+}
+
+export async function addManualBookToUserLibrary({
+                                                     title,
+                                                     author,
+                                                     firstPublishYear,
+                                                     genres,
+                                                 }: {
+    title: string;
+    author: string;
+    firstPublishYear?: number;
+    genres?: string[];
+}) {
+    const userId = await getCurrentUserId();
+
+    const manualBookId = `manual-${userId}-${Date.now()}`;
+
+    const savedBook = await upsertBookFromSearchResult({
+        id: manualBookId,
+        title,
+        author,
+        firstPublishYear,
+        genres: genres ?? [],
+    });
+
+    await addBookToUserLibrary(savedBook.id, userId);
+
+    return savedBook;
 }

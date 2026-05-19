@@ -1,9 +1,8 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
     Keyboard,
-    KeyboardAvoidingView,
+    KeyboardAvoidingView, Modal,
     Platform,
     Pressable,
     ScrollView,
@@ -16,13 +15,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import LottieView from "lottie-react-native";
 
-import { AppHeader } from "@/src/components/AppHeader";
 import { BookCover } from "@/src/components/BookCover";
 import { CoverPlaceholder } from "@/src/components/CoverPlaceholder";
 import { t } from "@/src/i18n";
 import { searchBooks } from "@/src/services/booksApi";
 import {
-    addBookToUserLibrary,
+    addBookToUserLibrary, addManualBookToUserLibrary,
     getCurrentUserId,
     upsertBookFromSearchResult,
 } from "@/src/services/supabaseBooks";
@@ -38,6 +36,7 @@ import { showAppAlert } from "@/src/utils/appAlert";
 import { getOpenLibraryWorkId } from "@/src/utils/openLibrary";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {GENRE_OPTIONS} from "@/src/constants/readingPreferences";
 
 export default function AddBookScreen() {
     const theme = useAppTheme();
@@ -51,6 +50,12 @@ export default function AddBookScreen() {
     const [errorText, setErrorText] = useState("");
     const [hasSearched, setHasSearched] = useState(false);
     const [storedBookMap, setStoredBookMap] = useState<Record<string, string>>({});
+    const [isManualBookModalVisible, setIsManualBookModalVisible] = useState(false);
+    const [manualTitle, setManualTitle] = useState("");
+    const [manualAuthor, setManualAuthor] = useState("");
+    const [manualYear, setManualYear] = useState("");
+    const [isSavingManualBook, setIsSavingManualBook] = useState(false);
+    const [manualGenres, setManualGenres] = useState<string[]>([]);
 
     const trimmedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
 
@@ -132,6 +137,89 @@ export default function AddBookScreen() {
         }
     }
 
+    async function handleAddManualBook() {
+        const title = manualTitle.trim();
+        const author = manualAuthor.trim();
+        const parsedYear = manualYear.trim() ? Number(manualYear.trim()) : undefined;
+
+        if (!title || !author) {
+            showAppAlert(
+                t("addBook.manualErrorTitle"),
+                t("addBook.manualRequiredFields")
+            );
+            return;
+        }
+
+        if (parsedYear && Number.isNaN(parsedYear)) {
+            showAppAlert(
+                t("addBook.manualErrorTitle"),
+                t("addBook.manualInvalidYear")
+            );
+            return;
+        }
+
+        try {
+            setIsSavingManualBook(true);
+
+            await addManualBookToUserLibrary({
+                title,
+                author,
+                firstPublishYear: parsedYear,
+                genres: manualGenres,
+            });
+
+            triggerRefresh("books", "home");
+
+            setManualTitle("");
+            setManualAuthor("");
+            setManualYear("");
+            setIsManualBookModalVisible(false);
+            setManualGenres([]);
+
+            showAppAlert(
+                t("addBook.manualSuccessTitle"),
+                t("addBook.manualSuccessText")
+            );
+        } catch (error) {
+            console.error("Fout bij handmatig toevoegen van boek:", error);
+            showAppAlert(
+                t("addBook.errorTitle"),
+                t("addBook.manualSaveError")
+            );
+        } finally {
+            setIsSavingManualBook(false);
+        }
+    }
+    function handleToggleManualGenre(genreValue: string) {
+        setManualGenres((currentGenres) => {
+            if (currentGenres.includes(genreValue)) {
+                return currentGenres.filter((genre) => genre !== genreValue);
+            }
+
+            return [...currentGenres, genreValue];
+        });
+    }
+
+    const manualBookCard = hasSearched ? (
+        <View style={styles.manualBookCard}>
+            <Text style={styles.manualBookTitle}>
+                {t("addBook.manualBookTitle")}
+            </Text>
+            <Text style={styles.manualBookText}>
+                {t("addBook.manualBookText")}
+            </Text>
+
+            <Pressable
+                style={styles.manualBookButton}
+                onPress={() => setIsManualBookModalVisible(true)}
+            >
+                <Text style={styles.manualBookButtonText}>
+                    {t("addBook.manualBookButton")}
+                </Text>
+            </Pressable>
+        </View>
+    ) : null;
+
     const screenContent = (
         <View style={pageStyles.screen}>
             <View style={styles.fixedHeaderContent}>
@@ -185,6 +273,7 @@ export default function AddBookScreen() {
                     <View style={styles.emptyCard}>
                         <Text style={styles.emptyTitle}>{t("addBook.noResults")}</Text>
                         <Text style={styles.emptyText}>{t("addBook.noResultsText")}</Text>
+                        {manualBookCard}
                     </View>
                 ) : (
                     <View style={styles.resultsList}>
@@ -237,7 +326,9 @@ export default function AddBookScreen() {
                                 </View>
                             );
                         })}
+                        {manualBookCard}
                     </View>
+
                 )}
 
                 {!hasSearched && trimmedQuery === "" ? (
@@ -266,6 +357,125 @@ export default function AddBookScreen() {
                     </TouchableWithoutFeedback>
                 )}
             </KeyboardAvoidingView>
+            <Modal
+                visible={isManualBookModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsManualBookModalVisible(false)}
+            >
+                <KeyboardAvoidingView
+                    style={styles.modalKeyboardView}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                >
+                    <View style={styles.modalOverlay}>
+                        <ScrollView
+                            contentContainerStyle={styles.modalScrollContent}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalCard}>
+                                <Text style={styles.modalTitle}>
+                                    {t("addBook.manualModalTitle")}
+                                </Text>
+
+                                <Text style={styles.modalText}>
+                                    {t("addBook.manualModalText")}
+                                </Text>
+
+                                <TextInput
+                                    value={manualTitle}
+                                    onChangeText={setManualTitle}
+                                    placeholder={t("addBook.manualTitlePlaceholder")}
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.manualInput}
+                                    returnKeyType="next"
+                                />
+
+                                <TextInput
+                                    value={manualAuthor}
+                                    onChangeText={setManualAuthor}
+                                    placeholder={t("addBook.manualAuthorPlaceholder")}
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.manualInput}
+                                    returnKeyType="next"
+                                />
+
+                                <TextInput
+                                    value={manualYear}
+                                    onChangeText={setManualYear}
+                                    placeholder={t("addBook.manualYearPlaceholder")}
+                                    placeholderTextColor={theme.colors.textMuted}
+                                    style={styles.manualInput}
+                                    keyboardType="number-pad"
+                                    returnKeyType="done"
+                                />
+
+                                <View style={styles.genreSection}>
+                                    <Text style={styles.genreSectionTitle}>
+                                        {t("addBook.manualGenresLabel")}
+                                    </Text>
+
+                                    <View style={styles.genreChipWrap}>
+                                        {GENRE_OPTIONS.map((genre) => {
+                                            const isSelected = manualGenres.includes(genre.value);
+
+                                            return (
+                                                <Pressable
+                                                    key={genre.value}
+                                                    style={[
+                                                        styles.genreChip,
+                                                        isSelected && styles.genreChipSelected,
+                                                    ]}
+                                                    onPress={() => handleToggleManualGenre(genre.value)}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.genreChipText,
+                                                            isSelected && styles.genreChipTextSelected,
+                                                        ]}
+                                                    >
+                                                        {genre.label}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+
+                                <View style={styles.modalButtonRow}>
+                                    <Pressable
+                                        style={styles.modalSecondaryButton}
+                                        onPress={() => {
+                                            Keyboard.dismiss();
+                                            setIsManualBookModalVisible(false);
+                                        }}
+                                        disabled={isSavingManualBook}
+                                    >
+                                        <Text style={styles.modalSecondaryButtonText}>
+                                            {t("common.cancel")}
+                                        </Text>
+                                    </Pressable>
+
+                                    <Pressable
+                                        style={[
+                                            styles.modalPrimaryButton,
+                                            isSavingManualBook && styles.searchButtonDisabled,
+                                        ]}
+                                        onPress={() => void handleAddManualBook()}
+                                        disabled={isSavingManualBook}
+                                    >
+                                        <Text style={styles.modalPrimaryButtonText}>
+                                            {isSavingManualBook
+                                                ? t("addBook.manualSaving")
+                                                : t("addBook.manualSaveButton")}
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -415,6 +625,137 @@ function createStyles(theme: AppTheme) {
         },
         addSmallButtonTextAdded: {
             color: theme.colors.success,
+        },
+        manualBookCard: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.md,
+        },
+        manualBookTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        manualBookText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+        manualBookButton: {
+            alignSelf: "flex-start",
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+        manualBookButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.35)",
+        },
+        modalCard: {
+            width: "100%",
+            maxWidth: 420,
+            backgroundColor: theme.colors.background,
+            borderRadius: theme.radius.lg,
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+        },
+        modalTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.lg,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        modalText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+        manualInput: {
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.md,
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+        },
+        modalButtonRow: {
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
+        },
+        modalSecondaryButton: {
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+        modalSecondaryButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        modalPrimaryButton: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+        modalPrimaryButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        modalKeyboardView: {
+            flex: 1,
+        },
+        modalScrollContent: {
+            flexGrow: 1,
+            justifyContent: "center",
+            padding: theme.spacing.lg,
+        },
+        genreSection: {
+            gap: theme.spacing.sm,
+        },
+        genreSectionTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+        genreChipWrap: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: theme.spacing.xs,
+        },
+        genreChip: {
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: theme.colors.surface,
+        },
+        genreChipSelected: {
+            backgroundColor: theme.colors.accent,
+            borderColor: theme.colors.accent,
+        },
+        genreChipText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+        genreChipTextSelected: {
+            color: "#FFFFFF",
         },
     });
 }

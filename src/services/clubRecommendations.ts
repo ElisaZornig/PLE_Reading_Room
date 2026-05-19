@@ -1855,3 +1855,16 @@ export function prefetchClubRecommendations(clubId: string) {
         return [];
     });
 }
+
+export const __testing = {
+    normalizeLanguage,
+    formatLanguageLabel,
+    canonicalizeSubject,
+    fallbackSubjectsFromGenres,
+    getStatusWeight,
+    shouldExcludeFromRecommendations,
+    getYearFitScore,
+    buildRecommendationReason,
+    isLikelyLaterSeriesBook,
+    looksLikeExcludedFormat,
+};

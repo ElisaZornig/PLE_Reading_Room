@@ -1,4 +1,5 @@
 import { SearchBookResult } from "../types/book";
+import {createBookSearchVariants, rankBookSearchResults} from "@/src/utils/bookSearch";
 
 type OpenLibraryDoc = {
     key: string;
@@ -12,17 +13,47 @@ type OpenLibraryResponse = {
     docs?: OpenLibraryDoc[];
 };
 
-export async function searchBooks(query: string): Promise<SearchBookResult[]> {
-    const trimmedQuery = query.trim();
+const SEARCH_RESULT_LIMIT = 10;
+const FALLBACK_SEARCH_LIMIT = 8;
+const MIN_RESULTS_BEFORE_FALLBACK = 5;
 
-    if (!trimmedQuery) {
-        return [];
+function mapOpenLibraryDocToSearchResult(doc: OpenLibraryDoc): SearchBookResult | null {
+    if (!doc.title) {
+        return null;
     }
 
+    return {
+        id: doc.key,
+        title: doc.title,
+        author: doc.author_name?.[0] ?? "Onbekende auteur",
+        cover: doc.cover_i
+            ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
+            : undefined,
+        firstPublishYear: doc.first_publish_year,
+    };
+}
+
+function removeDuplicateBooks(books: SearchBookResult[]): SearchBookResult[] {
+    const seenBookIds = new Set<string>();
+
+    return books.filter((book) => {
+        if (seenBookIds.has(book.id)) {
+            return false;
+        }
+
+        seenBookIds.add(book.id);
+        return true;
+    });
+}
+
+async function fetchOpenLibraryBooks(
+    query: string,
+    limit = SEARCH_RESULT_LIMIT
+): Promise<SearchBookResult[]> {
     const params = new URLSearchParams({
-        q: trimmedQuery,
+        q: query,
         fields: "key,title,author_name,cover_i,first_publish_year",
-        limit: "10",
+        limit: String(limit),
     });
 
     const response = await fetch(
@@ -36,16 +67,46 @@ export async function searchBooks(query: string): Promise<SearchBookResult[]> {
     const data: OpenLibraryResponse = await response.json();
 
     return (data.docs ?? [])
-        .filter((doc) => doc.title)
-        .map((doc) => ({
-            id: doc.key,
-            title: doc.title ?? "Onbekende titel",
-            author: doc.author_name?.[0] ?? "Onbekende auteur",
-            cover: doc.cover_i
-                ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
-                : undefined,
-            firstPublishYear: doc.first_publish_year,
-        }));
+        .map(mapOpenLibraryDocToSearchResult)
+        .filter((book): book is SearchBookResult => Boolean(book));
+}
+
+export async function searchBooks(query: string): Promise<SearchBookResult[]> {
+    const trimmedQuery = query.trim();
+
+    if (!trimmedQuery) {
+        return [];
+    }
+
+    const [primaryQuery, ...fallbackQueries] = createBookSearchVariants(trimmedQuery);
+
+    const primaryResults = await fetchOpenLibraryBooks(
+        primaryQuery ?? trimmedQuery,
+        SEARCH_RESULT_LIMIT
+    );
+
+    if (primaryResults.length >= MIN_RESULTS_BEFORE_FALLBACK) {
+        return rankBookSearchResults(trimmedQuery, primaryResults).slice(
+            0,
+            SEARCH_RESULT_LIMIT
+        );
+    }
+
+    const fallbackResults = await Promise.all(
+        fallbackQueries.map((fallbackQuery) =>
+            fetchOpenLibraryBooks(fallbackQuery, FALLBACK_SEARCH_LIMIT).catch(() => [])
+        )
+    );
+
+    const mergedResults = removeDuplicateBooks([
+        ...primaryResults,
+        ...fallbackResults.flat(),
+    ]);
+
+    return rankBookSearchResults(trimmedQuery, mergedResults).slice(
+        0,
+        SEARCH_RESULT_LIMIT
+    );
 }
 
 export async function getSubjectBooks(

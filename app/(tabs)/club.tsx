@@ -38,6 +38,7 @@ export default function ClubScreen() {
     const [isManageExpanded, setIsManageExpanded] = useState(false);
     const [activeQuestionCount, setActiveQuestionCount] = useState(0);
     const params = useLocalSearchParams<{ refresh?: string }>();
+
     async function handleCopyInviteCode() {
         if (!club?.inviteCode) return;
 
@@ -240,6 +241,7 @@ export default function ClubScreen() {
 
     const daysUntilMeeting = getDaysUntil(club.nextMeeting?.meetingDate);
     const owner = memberProgress.find((member) => member.role === "owner");
+
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
             <ScrollView
@@ -250,96 +252,128 @@ export default function ClubScreen() {
                 <View style={styles.topRow}>
                     <View style={styles.topText}>
                         <Text style={pageStyles.pageTitle}>{club.name}</Text>
+                        <Text style={styles.clubSubtitle}>{t("club.subtitle")}</Text>
                     </View>
 
                     <ProfileButton />
                 </View>
 
                 <View style={styles.statsRow}>
-
                     <View style={styles.statCard}>
+                        <View style={styles.statLabelRow}>
+                            <Feather name="trending-up" size={14} color={theme.colors.accent} />
+                            <Text style={styles.statLabel}>{t("club.clubProgress")}</Text>
+                        </View>
                         <Text style={styles.statValue}>{club.averageProgress}%</Text>
-                        <Text style={styles.statLabel}>{t("club.read")}</Text>
                     </View>
 
                     <View style={styles.statCard}>
+                        <View style={styles.statLabelRow}>
+                            <Feather name="clock" size={14} color={theme.colors.accent} />
+                            <Text style={styles.statLabel}>{t("club.daysUntilMeeting")}</Text>
+                        </View>
                         <Text style={styles.statValue}>{daysUntilMeeting ?? "-"}</Text>
-                        <Text style={styles.statLabel}>{t("club.days")}</Text>
                     </View>
                 </View>
 
-                <View style={pageStyles.sectionCard}>
+                <Pressable
+                    style={styles.currentBookCard}
+                    onPress={() => {
+                        if (club.currentBook) {
+                            router.push({
+                                pathname: "/book/[id]",
+                                params: { id: club.currentBook.id },
+                            });
+                            return;
+                        }
+
+                        router.push({
+                            pathname: "/set-current-book",
+                            params: { clubId: club.id },
+                        });
+                    }}
+                >
                     <Text style={pageStyles.sectionLabel}>{t("club.currentBook")}</Text>
 
                     {club.currentBook ? (
                         <>
-                            <View style={styles.bookRow}>
+                            <View style={styles.currentBookRow}>
                                 <BookCover
                                     title={club.currentBook.title}
                                     cover={club.currentBook.cover}
                                     small
                                 />
 
-                                <View style={styles.bookInfo}>
-                                    <Text style={styles.bookTitle}>{club.currentBook.title}</Text>
-                                    <Text style={styles.bookAuthor}>{club.currentBook.author}</Text>
+                                <View style={styles.currentBookInfo}>
+                                    <Text style={styles.bookTitle} numberOfLines={2}>
+                                        {club.currentBook.title}
+                                    </Text>
+                                    <Text style={styles.bookAuthor} numberOfLines={1}>
+                                        {club.currentBook.author}
+                                    </Text>
                                 </View>
                             </View>
 
-                            <Pressable
-                                style={pageStyles.secondaryButton}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: "/choose-next-book",
-                                        params: { clubId: club.id },
-                                    })
-                                }
-                            >
-                                <Text style={pageStyles.secondaryButtonText}>
-                                    {t("club.changeCurrentBook")}
+                            <View style={styles.clubProgressWrap}>
+                                <Progress.Bar
+                                    progress={club.averageProgress / 100}
+                                    width={null}
+                                    height={5}
+                                    borderWidth={0}
+                                    color={theme.colors.accent}
+                                    unfilledColor={theme.colors.border}
+                                    style={styles.clubProgressBar}
+                                />
+                                <Text style={styles.progressPercentage}>
+                                    {club.averageProgress}%
                                 </Text>
-                            </Pressable>
+                            </View>
+
+                            <Text style={styles.tapHint}>{t("club.tapToViewProgress")}</Text>
                         </>
                     ) : (
-                        <>
-                            <Text style={pageStyles.emptyText}>
-                                {t("club.noCurrentClubBook")}
-                            </Text>
-
-                            <Pressable
-                                style={pageStyles.secondaryButton}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: "/set-current-book",
-                                        params: { clubId: club.id },
-                                    })
-                                }
-                            >
-                                <Text style={pageStyles.secondaryButtonText}>
-                                    {t("club.setCurrentBook")}
-                                </Text>
-                            </Pressable>
-                        </>
+                        <View style={styles.emptyCurrentBook}>
+                            <Text style={styles.linkSubtitle}>{t("club.noCurrentClubBook")}</Text>
+                            <Text style={styles.tapHint}>{t("club.setCurrentBook")}</Text>
+                        </View>
                     )}
-                </View>
+                </Pressable>
 
                 <Pressable
-                    style={styles.linkCard}
+                    style={styles.chooseNextCard}
                     onPress={() =>
                         router.push({
-                            pathname: "/recommendations",
+                            pathname: "/choose-next-book",
                             params: { clubId: club.id },
                         })
                     }
                 >
-                    <View style={styles.linkTextWrap}>
-                        <Text style={pageStyles.sectionLabel}>{t("club.nextBook")}</Text>
-                        <Text style={styles.linkSubtitle}>
-                            {t("club.nextBookSubtitle")}
-                        </Text>
+                    <View style={styles.chooseNextContent}>
+                        <View style={styles.chooseNextIconWrap}>
+                            <Feather name="star" size={20} color={theme.colors.accent} />
+                        </View>
+
+                        <View style={styles.chooseNextTextWrap}>
+                            <Text style={styles.cardTitle}>{t("club.chooseNextClubBook")}</Text>
+                            <Text style={styles.chooseNextSubtitle}>
+                                {t("club.chooseNextClubBookSubtitle")}
+                            </Text>
+                        </View>
                     </View>
 
-                    <Feather name="chevron-right" size={20} color={theme.colors.accent} />
+                    <Pressable
+                        style={styles.primaryCardButton}
+                        onPress={() =>
+                            router.push({
+                                pathname: "/choose-next-book",
+                                params: { clubId: club.id },
+                            })
+                        }
+                    >
+                        <Text style={styles.primaryCardButtonText}>
+                            {t("club.startChoosing")}
+                        </Text>
+                    </Pressable>
                 </Pressable>
 
                 <View style={pageStyles.sectionCard}>
@@ -884,6 +918,112 @@ function createStyles(theme: AppTheme) {
             justifyContent: "space-between",
             gap: theme.spacing.md,
         },
+        clubSubtitle: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            marginTop: 4,
+        },
+        currentBookCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.xl,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+        },
+
+        cardTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.md,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        currentBookRow: {
+            flexDirection: "row",
+            gap: theme.spacing.md,
+            alignItems: "center",
+        },
+
+        currentBookInfo: {
+            flex: 1,
+            gap: 6,
+        },
+
+        clubProgressWrap: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+        },
+
+        clubProgressBar: {
+            flex: 1,
+        },
+
+        progressPercentage: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            minWidth: 34,
+            textAlign: "right",
+        },
+
+        tapHint: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+        },
+
+        emptyCurrentBook: {
+            gap: theme.spacing.xs,
+        },
+
+        chooseNextCard: {
+            backgroundColor: theme.colors.background,
+            borderRadius: theme.radius.xl,
+            borderWidth: 1,
+            borderColor: theme.colors.accentSoft,
+            padding: theme.spacing.lg,
+            gap: theme.spacing.lg,
+            overflow: "hidden",
+        },
+
+        chooseNextContent: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: theme.spacing.md,
+        },
+
+        chooseNextIconWrap: {
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: theme.colors.accentSoft,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        chooseNextTextWrap: {
+            flex: 1,
+            gap: 6,
+        },
+
+        chooseNextSubtitle: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 21,
+        },
+
+        primaryCardButton: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.md,
+            paddingVertical: 13,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        primaryCardButtonText: {
+            color: '#FFFDFC',
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
         inviteTextWrap: {
             flex: 1,
             gap: 2,
@@ -945,5 +1085,12 @@ function createStyles(theme: AppTheme) {
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.medium,
         },
+        statLabelRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: theme.spacing.sm,
+        },
+
     });
 }
