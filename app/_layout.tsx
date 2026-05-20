@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "../src/services/supabase";
 import {AppThemeProvider} from "@/src/theme/AppThemeProvider";
+import {WebThemeColor} from "@/src/components/WebThemeColor";
 
 export default function RootLayout() {
     const scheme = useColorScheme();
@@ -51,6 +52,7 @@ export default function RootLayout() {
 
     return (
         <AppThemeProvider>
+            <WebThemeColor />
             <SafeAreaProvider>
                 <StatusBar style={scheme === "dark" ? "light" : "dark"} />
                 <Stack screenOptions={{ headerShown: false }}>
