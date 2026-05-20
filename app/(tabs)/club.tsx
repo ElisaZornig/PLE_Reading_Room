@@ -377,7 +377,7 @@ export default function ClubScreen() {
                 </Pressable>
 
                 <Pressable
-                    style={styles.chooseNextCard}
+                    style={pageStyles.sectionCard}
                     onPress={() =>
                         router.push({
                             pathname: "/choose-next-book",
@@ -385,13 +385,13 @@ export default function ClubScreen() {
                         })
                     }
                 >
+                    <Text style={pageStyles.sectionLabel}>{t("club.chooseNextClubBook")}</Text>
                     <View style={styles.chooseNextContent}>
                         <View style={styles.chooseNextIconWrap}>
                             <Feather name="star" size={20} color={theme.colors.accent} />
                         </View>
 
                         <View style={styles.chooseNextTextWrap}>
-                            <Text style={styles.cardTitle}>{t("club.chooseNextClubBook")}</Text>
                             <Text style={styles.chooseNextSubtitle}>
                                 {t("club.chooseNextClubBookSubtitle")}
                             </Text>
@@ -1108,7 +1108,7 @@ function createStyles(theme: AppTheme) {
 
         primaryCardButton: {
             backgroundColor: theme.colors.accent,
-            borderRadius: theme.radius.md,
+            borderRadius: theme.radius.xl,
             paddingVertical: 13,
             alignItems: "center",
             justifyContent: "center",

@@ -23,6 +23,7 @@ import {AppHeader} from "@/src/components/AppHeader";
 import {triggerRefresh} from "@/src/utils/refreshEvents";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {t} from "@/src/i18n";
+import {ChoiceStepper} from "@/src/components/ChoiceStepper";
 
 export default function SetCurrentBookScreen() {
     const theme = useAppTheme();
@@ -198,7 +199,10 @@ export default function SetCurrentBookScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
+
             <ScreenTopBar title={t("setCurrentBook.title")} />
+            <ChoiceStepper currentStep={2} />
+
             <KeyboardAvoidingView
                 style={styles.safeArea}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}

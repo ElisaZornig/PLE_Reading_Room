@@ -119,6 +119,18 @@ const en = {
         commentsMeetingDayDescription: "Replies become visible from the day of the meeting.",
         commentVisibilitySaveErrorTitle: "Setting not saved",
         commentVisibilitySaveErrorMessage: "The visibility setting could not be saved.",
+        chooseNextStepStart: "Step 1 of 4: Start",
+        chooseNextQuestion: "How do you want to choose the next book?",
+        chooseNextIntro: "Start with your own ideas, view recommendations or pick a book directly.",
+
+        chooseNextHasOptionsTitle: "We already have a few options",
+        chooseNextHasOptionsSubtitle: "Add books to the shortlist yourself.",
+
+        chooseNextWantsRecommendationsTitle: "We want recommendations",
+        chooseNextWantsRecommendationsSubtitle: "Let the app suggest books based on your club.",
+
+        chooseNextKnowsBookTitle: "We already know the book",
+        chooseNextKnowsBookSubtitle: "Search or add one book and set it as the next club book.",
     },
     chooseBook: {
         title: "Choose a new book",
@@ -332,6 +344,42 @@ const en = {
             removeTitle: "Remove from shortlist failed",
             removeMessage: "Something went wrong while removing this book.",
         },
+        stepStart: "Step 1 of 4: Start",
+        stepShortlist: "Step 2 of 4: Shortlist",
+        shortlistScreenTitle: "Shortlist",
+        startQuestion: "How do you want to choose the next book?",
+        startSubtitle: "Start with your own ideas, view recommendations or pick a book directly.",
+
+        hasOptionsTitle: "We already have a few options",
+        hasOptionsSubtitle: "Add books to the shortlist yourself.",
+
+        wantRecommendationsTitle: "We want recommendations",
+        wantRecommendationsSubtitle: "Let the app suggest books based on your club.",
+
+        knowBookTitle: "We already know the book",
+        knowBookSubtitle: "Search or add one book and set it as the next club book.",
+        searchAction: "Search",
+        addManuallyAction: "Add manually",
+        recommendationsAction: "Recommendations",
+        yourShortlist: "Your shortlist",
+        byAuthor: "by {{author}}",
+        addedByYou: "Added by you",
+        addedByRecommendations: "Added through recommendations",
+        continueToChoose: "Continue to choose",
+        needMoreBooksToChoose: "Add at least 2 books to continue",
+        manualComingSoonTitle: "Not available yet",
+        manualComingSoonText: "Manual book entry will be added in a next step.",
+        shortlistTitleMain: "Build your shortlist",
+        shortlistSubtitle: "Add books your club might want to read next.",
+        manualTitlePlaceholder: "Book title",
+        manualAuthorPlaceholder: "Author, optional",
+        manualYearPlaceholder: "Year, optional",
+        addManualBook: "Add book",
+        manualMissingTitle: "Missing title",
+        manualMissingTitleMessage: "Please enter at least a book title.",
+        manualInvalidYearTitle: "Invalid year",
+        manualInvalidYearMessage: "Enter a valid year or leave the field empty.",
+        unknownAuthor: "Unknown author",
 
     },
     discussion: {
@@ -403,41 +451,56 @@ const en = {
         errorTitle: "Plan meeting error",
     },
     recommendations: {
-        title: "Choose next book",
-        subtitle: "Save the best recommendations to your final picks, then choose your next book together.",
+        title: "Recommendations",
+        stepRecommendations: "Step 2 of 4: Recommendations",
+        subtitle: "See which books match your club and add favorites to the shortlist.",
+
         refresh: "Refresh",
         refreshing: "Refreshing recommendations...",
-        showFiveOthers: "Show 5 others",
+        showFiveOthers: "Show 5 more",
         loadingMore: "Loading...",
+
         emptyTitle: "No recommendations yet",
-        emptyText: "Add more books and genres to your club’s reading history first.",
-        saveToFinalPicks: "Save to final picks",
-        removeFromFinalPicks: "Remove from final picks",
+        emptyText: "Add more books and genres to your club reading history first.",
+
+        addToShortlist: "Add to shortlist",
+        removeFromShortlist: "Remove from shortlist",
         adding: "Adding...",
-        viewFinalPicks: "View final picks (%{count})",
+        addedToShortlist: "Added to shortlist",
+
+        goToShortlist: "Go to shortlist",
+        viewShortlist: "View shortlist (%{count})",
+
         bookDetails: "Book details",
         aboutThisBook: "About this book",
         whyThisFits: "Why this fits",
         firstPublished: "First published: %{year}",
+
         noMoreTitle: "No more recommendations",
-        noMoreText: "No additional recommendations were found.",
-        refreshErrorTitle: "Refresh error",
-        refreshErrorText: "Something went wrong while refreshing recommendations.",
-        loadErrorTitle: "Recommendations error",
-        loadErrorText: "Something went wrong while loading recommendations.",
-        addErrorTitle: "Add to final picks error",
+        noMoreText: "No extra recommendations were found.",
+
+        refreshErrorTitle: "Refresh failed",
+        refreshErrorText: "Something went wrong while refreshing the recommendations.",
+
+        loadErrorTitle: "Could not load recommendations",
+        loadErrorText: "Something went wrong while loading the recommendations.",
+
+        addErrorTitle: "Could not add to shortlist",
         addErrorText: "Something went wrong while adding this book.",
-        removeErrorTitle: "Remove from final picks error",
+
+        removeErrorTitle: "Could not remove from shortlist",
         removeErrorText: "Something went wrong while removing this book.",
-        removeConfirmTitle: "Remove from final picks",
-        removeConfirmText: "Do you want to remove this book from the final picks?",
+
+        removeConfirmTitle: "Remove from shortlist",
+        removeConfirmText: "Do you want to remove this book from the shortlist?",
+
         bookFallback: "Book",
     },
     createClub: {
         title: "Create club"
     },
     setCurrentBook: {
-        title: "Set current book",
+        title: "Pick a club book directly",
         searchPlaceholder: "Search for a book",
         searchError: "Something went wrong while searching.",
         selectBookTitle: "Select a book",
@@ -451,6 +514,8 @@ const en = {
         noResultsText: "Try another title or author.",
         saving: "Saving...",
         submit: "Set current book",
+        subtitle: "Search for the book your club already chose and set it as the current club book.",
+
     },
     spinWheel: {
         title: "Spin the wheel",
@@ -571,6 +636,22 @@ const en = {
         noReadBooks: "No read books visible yet.",
         unknownUser: "Unknown user",
         privateProfile: "You can only view this reading profile if you are friends.",
+    },
+    chooseMethod: {
+        screenTitle: "Choose method",
+        step: "Step 3 of 4: Choose",
+        title: "How do you want to choose?",
+        subtitle: "Pick a way to decide the next club book from your shortlist.",
+
+        wheelTitle: "Spin the wheel",
+        wheelSubtitle: "Let chance choose from your shortlist. Quick, simple and fun.",
+        voteTitle: "Vote",
+        voteSubtitle: "Everyone chooses their favorite. The book with the most votes wins.",
+        swipeTitle: "Swipe round",
+        swipeSubtitle: "Rate each book with yes, maybe or no.",
+
+        recommended: "Recommended",
+        later: "Later",
     },
 
 

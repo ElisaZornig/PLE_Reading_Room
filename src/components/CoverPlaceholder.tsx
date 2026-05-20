@@ -3,13 +3,15 @@ import { useAppTheme } from "../theme/useAppTheme";
 
 type Props = {
     title: string;
+    small?: boolean;
 };
 
-export function CoverPlaceholder({ title }: Props) {
+export function CoverPlaceholder({ title, small = false }: Props) {
     const theme = useAppTheme();
 
     const initials = title
         .split(" ")
+        .filter(Boolean)
         .slice(0, 2)
         .map((word) => word[0])
         .join("")
@@ -19,14 +21,21 @@ export function CoverPlaceholder({ title }: Props) {
         <View
             style={[
                 styles.cover,
+                small && styles.coverSmall,
                 {
                     backgroundColor: theme.colors.accentSoft,
                     borderColor: theme.colors.border,
                 },
             ]}
         >
-            <Text style={[styles.text, { color: theme.colors.accent }]}>
-                {initials}
+            <Text
+                style={[
+                    styles.text,
+                    small && styles.textSmall,
+                    { color: theme.colors.accent },
+                ]}
+            >
+                {initials || "?"}
             </Text>
         </View>
     );
@@ -41,8 +50,16 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
+    coverSmall: {
+        width: 48,
+        height: 72,
+        borderRadius: 8,
+    },
     text: {
         fontSize: 18,
         fontWeight: "700",
+    },
+    textSmall: {
+        fontSize: 12,
     },
 });

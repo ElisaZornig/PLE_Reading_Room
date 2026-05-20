@@ -119,6 +119,18 @@ const nl = {
         commentsMeetingDayDescription: "Reacties worden zichtbaar vanaf de dag van de meeting.",
         commentVisibilitySaveErrorTitle: "Instelling niet opgeslagen",
         commentVisibilitySaveErrorMessage: "De zichtbaarheidsinstelling kon niet worden opgeslagen.",
+        chooseNextStepStart: "Stap 1 van 4: Start",
+        chooseNextQuestion: "Hoe willen jullie het volgende boek kiezen?",
+        chooseNextIntro: "Start met eigen ideeën, bekijk aanbevelingen of stel direct een boek in.",
+
+        chooseNextHasOptionsTitle: "We hebben al een paar opties",
+        chooseNextHasOptionsSubtitle: "Voeg zelf boeken toe aan de shortlist.",
+
+        chooseNextWantsRecommendationsTitle: "We willen aanbevelingen",
+        chooseNextWantsRecommendationsSubtitle: "Laat de app boeken voorstellen op basis van jullie club.",
+
+        chooseNextKnowsBookTitle: "We weten het boek al",
+        chooseNextKnowsBookSubtitle: "Zoek of voeg één boek toe en stel dit direct in als clubboek.",
     },
     chooseBook: {
         title: "Kies een nieuw boek",
@@ -321,6 +333,33 @@ const nl = {
             confirm: "Verwijderen",
             cancel: "Annuleren",
         },
+        stepStart: "Stap 1 van 4: Start",
+        stepShortlist: "Stap 2 van 4: Shortlist",
+        shortlistScreenTitle: "Shortlist",
+        startQuestion: "Hoe willen jullie het volgende boek kiezen?",
+        startSubtitle: "Start met eigen ideeën, bekijk aanbevelingen of stel direct een boek in.",
+
+        hasOptionsTitle: "We hebben al een paar opties",
+        hasOptionsSubtitle: "Voeg zelf boeken toe aan de shortlist.",
+
+        wantRecommendationsTitle: "We willen aanbevelingen",
+        wantRecommendationsSubtitle: "Laat de app boeken voorstellen op basis van jullie club.",
+
+        knowBookTitle: "We weten het boek al",
+        knowBookSubtitle: "Zoek of voeg één boek toe en stel dit direct in als clubboek.",
+        searchAction: "Zoeken",
+        addManuallyAction: "Handmatig",
+        recommendationsAction: "Aanbevelingen",
+        yourShortlist: "Jullie shortlist",
+        byAuthor: "door {{author}}",
+        addedByYou: "Toegevoegd door jou",
+        addedByRecommendations: "Toegevoegd via aanbevelingen",
+        continueToChoose: "Verder naar kiezen",
+        needMoreBooksToChoose: "Voeg minstens 2 boeken toe om verder te gaan",
+        manualComingSoonTitle: "Nog niet beschikbaar",
+        manualComingSoonText: "Handmatig toevoegen bouwen we in een volgende stap.",
+        shortlistTitleMain: "Bouw jullie shortlist",
+        shortlistSubtitle: "Voeg boeken toe die jullie club misschien als volgende wil lezen.",
         errors: {
             loadTitle: "Er ging iets mis",
             loadMessage: "Er ging iets mis bij het laden van de shortlist.",
@@ -330,7 +369,15 @@ const nl = {
             removeTitle: "Verwijderen uit shortlist mislukt",
             removeMessage: "Er ging iets mis bij het verwijderen van dit boek.",
         },
-
+        manualTitlePlaceholder: "Titel van het boek",
+        manualAuthorPlaceholder: "Auteur, optioneel",
+        manualYearPlaceholder: "Jaar, optioneel",
+        addManualBook: "Boek toevoegen",
+        manualMissingTitle: "Titel ontbreekt",
+        manualMissingTitleMessage: "Vul minimaal een boektitel in.",
+        manualInvalidYearTitle: "Ongeldig jaar",
+        manualInvalidYearMessage: "Vul een geldig jaartal in of laat het veld leeg.",
+        unknownAuthor: "Onbekende auteur",
     },
     discussion: {
         title: "Discussie",
@@ -401,41 +448,56 @@ const nl = {
         errorTitle: "Meeting plannen mislukt",
     },
     recommendations: {
-        title: "Volgend boek kiezen",
-        subtitle: "Sla de beste aanbevelingen op in jullie eindselectie en kies daarna samen het volgende boek.",
+        title: "Aanbevelingen",
+        stepRecommendations: "Stap 2 van 4: Aanbevelingen",
+        subtitle: "Bekijk welke boeken bij jullie club passen en voeg favorieten toe aan de shortlist.",
+
         refresh: "Vernieuwen",
         refreshing: "Aanbevelingen vernieuwen...",
         showFiveOthers: "Toon 5 andere",
         loadingMore: "Laden...",
+
         emptyTitle: "Nog geen aanbevelingen",
         emptyText: "Voeg eerst meer boeken en genres toe aan de leesgeschiedenis van jullie club.",
-        saveToFinalPicks: "Opslaan in eindselectie",
-        removeFromFinalPicks: "Verwijderen uit eindselectie",
+
+        addToShortlist: "Toevoegen aan shortlist",
+        removeFromShortlist: "Verwijderen uit shortlist",
         adding: "Toevoegen...",
-        viewFinalPicks: "Bekijk eindselectie (%{count})",
+        addedToShortlist: "Toegevoegd aan shortlist",
+
+        goToShortlist: "Naar shortlist",
+        viewShortlist: "Bekijk shortlist (%{count})",
+
         bookDetails: "Boekdetails",
         aboutThisBook: "Over dit boek",
         whyThisFits: "Waarom dit past",
         firstPublished: "Voor het eerst gepubliceerd: %{year}",
+
         noMoreTitle: "Geen extra aanbevelingen",
         noMoreText: "Er zijn geen extra aanbevelingen gevonden.",
+
         refreshErrorTitle: "Vernieuwen mislukt",
         refreshErrorText: "Er ging iets mis bij het vernieuwen van de aanbevelingen.",
+
         loadErrorTitle: "Aanbevelingen laden mislukt",
         loadErrorText: "Er ging iets mis bij het laden van de aanbevelingen.",
-        addErrorTitle: "Opslaan in eindselectie mislukt",
+
+        addErrorTitle: "Toevoegen aan shortlist mislukt",
         addErrorText: "Er ging iets mis bij het toevoegen van dit boek.",
-        removeErrorTitle: "Verwijderen uit eindselectie mislukt",
+
+        removeErrorTitle: "Verwijderen uit shortlist mislukt",
         removeErrorText: "Er ging iets mis bij het verwijderen van dit boek.",
-        removeConfirmTitle: "Verwijderen uit eindselectie",
-        removeConfirmText: "Wil je dit boek uit de eindselectie verwijderen?",
+
+        removeConfirmTitle: "Verwijderen uit shortlist",
+        removeConfirmText: "Wil je dit boek uit de shortlist verwijderen?",
+
         bookFallback: "Boek",
     },
     createClub: {
         title: "Creëer club"
     },
     setCurrentBook: {
-        title: "Huidig boek kiezen",
+        title: "Kies direct een clubboek",
         searchPlaceholder: "Zoek een boek",
         searchError: "Er ging iets mis tijdens het zoeken.",
         selectBookTitle: "Kies een boek",
@@ -449,6 +511,7 @@ const nl = {
         noResultsText: "Probeer een andere titel of auteur.",
         saving: "Opslaan...",
         submit: "Huidig boek instellen",
+        subtitle: "Zoek het boek dat jullie al gekozen hebben en stel dit direct in als huidig clubboek.",
     },
     spinWheel: {
         title: "Draai het rad",
@@ -569,6 +632,22 @@ const nl = {
         noReadBooks: "Nog geen gelezen boeken zichtbaar.",
         unknownUser: "Onbekende gebruiker",
         privateProfile: "Je kunt dit leesprofiel alleen bekijken als jullie vrienden zijn.",
+    },
+    chooseMethod: {
+        screenTitle: "Kiesmethode",
+        step: "Stap 3 van 4: Kiezen",
+        title: "Hoe willen jullie kiezen?",
+        subtitle: "Kies een manier om uit jullie shortlist het volgende clubboek te bepalen.",
+
+        wheelTitle: "Rad draaien",
+        wheelSubtitle: "Laat het toeval kiezen uit jullie shortlist. Snel, simpel en leuk.",
+        voteTitle: "Stemmen",
+        voteSubtitle: "Iedereen kiest zijn favoriet. Het boek met de meeste stemmen wint.",
+        swipeTitle: "Swipe ronde",
+        swipeSubtitle: "Beoordeel elk boek met ja, misschien of nee.",
+
+        recommended: "Aanrader",
+        later: "Later",
     },
 
 

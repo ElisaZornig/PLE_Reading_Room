@@ -12,7 +12,7 @@ export function BookCover({ title, cover, small = false }: Props) {
     const height = small ? 74 : 100;
 
     if (!cover) {
-        return <CoverPlaceholder title={title} />;
+        return <CoverPlaceholder title={title} small={small} />;
     }
 
     return (

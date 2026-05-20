@@ -33,6 +33,7 @@ import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 import { subscribeToRefresh } from "@/src/utils/refreshEvents";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
+import {ChoiceStepper} from "@/src/components/ChoiceStepper";
 
 type RecommendationSessionCache = {
     hasLoaded: boolean;
@@ -228,14 +229,30 @@ export default function RecommendationsScreen() {
                 ]),
             ];
 
-            setRecommendations(data);
-            setSeenWorkIds(nextSeenWorkIds);
+            setRecommendations((currentRecommendations) => {
+                const existingIds = new Set(
+                    currentRecommendations.map((item) => item.openLibraryWorkId)
+                );
 
-            updateSessionCache({
-                hasLoaded: true,
-                recommendations: data,
-                seenWorkIds: nextSeenWorkIds,
+                const newUniqueRecommendations = data.filter(
+                    (item) => !existingIds.has(item.openLibraryWorkId)
+                );
+
+                const combinedRecommendations = [
+                    ...currentRecommendations,
+                    ...newUniqueRecommendations,
+                ];
+
+                updateSessionCache({
+                    hasLoaded: true,
+                    recommendations: combinedRecommendations,
+                    seenWorkIds: nextSeenWorkIds,
+                });
+
+                return combinedRecommendations;
             });
+
+            setSeenWorkIds(nextSeenWorkIds);
 
             await loadShortlistState();
         } catch (error) {
@@ -333,7 +350,24 @@ export default function RecommendationsScreen() {
             ]
         );
     }
+    const renderHeader = () => (
+        <View>
 
+            <Text style={styles.title}>
+                {t("recommendations.title")}
+            </Text>
+
+            <Text style={styles.subtitle}>
+                {t("recommendations.subtitle")}
+            </Text>
+
+            {isRefreshing ? (
+                <Text style={styles.refreshingText}>
+                    {t("recommendations.refreshing")}
+                </Text>
+            ) : null}
+        </View>
+    );
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
             <ScreenTopBar title={t("recommendations.title")} right = {
@@ -349,46 +383,47 @@ export default function RecommendationsScreen() {
                 </Pressable>
             }/>
             <View style={pageStyles.screen}>
-                <View style={styles.header}>
-                    <View style={styles.headerTopRow}>
+                    <ChoiceStepper currentStep={2} />
 
-
-                    </View>
-
-                    <Text style={pageStyles.pageSubtitle}>
-                        {t("recommendations.subtitle")}
-                    </Text>
-
-                    {isRefreshing ? (
-                        <Text style={styles.refreshingText}>
-                            {t("recommendations.refreshing")}
-                        </Text>
-                    ) : null}
-                </View>
 
                 {isLoading ? (
-                    <View style={styles.stateWrapper}>
-                        <LottieView
-                            source={require("@/assets/animations/loading-book.json")}
-                            autoPlay
-                            loop
-                            style={{ width: 200, height: 200 }}
-                        />
-                    </View>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.listContent}
+                    >
+                        {renderHeader()}
+
+                        <View style={styles.stateWrapper}>
+                            <LottieView
+                                source={require("@/assets/animations/loading-book.json")}
+                                autoPlay
+                                loop
+                                style={{ width: 200, height: 200 }}
+                            />
+                        </View>
+                    </ScrollView>
                 ) : recommendations.length === 0 ? (
-                    <View style={styles.emptyCard}>
-                        <Text style={styles.emptyTitle}>
-                            {t("recommendations.emptyTitle")}
-                        </Text>
-                        <Text style={styles.emptyText}>
-                            {t("recommendations.emptyText")}
-                        </Text>
-                    </View>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.listContent}
+                    >
+                        {renderHeader()}
+
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyTitle}>
+                                {t("recommendations.emptyTitle")}
+                            </Text>
+                            <Text style={styles.emptyText}>
+                                {t("recommendations.emptyText")}
+                            </Text>
+                        </View>
+                    </ScrollView>
                 ) : (
                     <FlatList
                         data={recommendations}
                         keyExtractor={(item) => item.openLibraryWorkId}
                         showsVerticalScrollIndicator={false}
+                        ListHeaderComponent={renderHeader}
                         contentContainerStyle={styles.listContent}
                         renderItem={({ item, index }) => {
                             const isSaving = savingWorkId === item.openLibraryWorkId;
@@ -457,6 +492,7 @@ export default function RecommendationsScreen() {
                                         <Pressable
                                             style={[
                                                 styles.primaryButton,
+                                                isAdded && styles.secondaryButton,
                                                 isSaving && styles.primaryButtonDisabled,
                                             ]}
                                             onPress={() =>
@@ -466,12 +502,17 @@ export default function RecommendationsScreen() {
                                             }
                                             disabled={isSaving}
                                         >
-                                            <Text style={styles.primaryButtonText}>
+                                            <Text
+                                                style={[
+                                                    styles.primaryButtonText,
+                                                    isAdded && styles.secondaryButtonText,
+                                                ]}
+                                            >
                                                 {isAdded
-                                                    ? t("recommendations.removeFromFinalPicks")
+                                                    ? t("recommendations.removeFromShortlist")
                                                     : isSaving
                                                         ? t("recommendations.adding")
-                                                        : t("recommendations.saveToFinalPicks")}
+                                                        : t("recommendations.addToShortlist")}
                                             </Text>
                                         </Pressable>
                                     </View>
@@ -497,21 +538,21 @@ export default function RecommendationsScreen() {
                     />
                 )}
 
-                {shortlistCount > 0 ? (
-                    <Pressable
-                        style={styles.finalPicksButton}
-                        onPress={() =>
-                            router.push({
-                                pathname: "/choose-next-book",
-                                params: { clubId: resolvedClubId },
-                            })
-                        }
-                    >
-                        <Text style={styles.finalPicksButtonText}>
-                            {t("recommendations.viewFinalPicks", { count: shortlistCount })}
-                        </Text>
-                    </Pressable>
-                ) : null}
+                <Pressable
+                    style={styles.shortlistButton}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/club-shortlist",
+                            params: { clubId: resolvedClubId },
+                        })
+                    }
+                >
+                    <Text style={styles.shortlistButtonText}>
+                        {shortlistCount > 0
+                            ? t("recommendations.viewShortlist", { count: shortlistCount })
+                            : t("recommendations.goToShortlist")}
+                    </Text>
+                </Pressable>
             </View>
 
             <Modal
@@ -619,11 +660,37 @@ export default function RecommendationsScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
-        header: {
+        stepText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+        },
+
+        title: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.xxl,
+            fontWeight: theme.typography.fontWeight.bold,
+        },
+
+        subtitle: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+        shortlistButton: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.pill,
+            paddingVertical: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: theme.spacing.md,
+            marginHorizontal: theme.spacing.lg,
             marginBottom: theme.spacing.lg,
-            gap: theme.spacing.sm,
-            paddingHorizontal: theme.spacing.lg,
-            paddingTop: theme.spacing.lg,
+        },
+
+        shortlistButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
         },
         headerTopRow: {
             flexDirection: "row",
@@ -687,6 +754,7 @@ function createStyles(theme: AppTheme) {
         listContent: {
             gap: theme.spacing.md,
             paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.sm,
             paddingBottom: theme.spacing.xl,
         },
         card: {
@@ -905,6 +973,22 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.accent,
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
+        },
+        stepperWrap: {
+            width: "100%",
+            paddingHorizontal: theme.spacing.lg,
+            paddingTop: theme.spacing.lg,
+            paddingBottom: theme.spacing.sm,
+            alignItems: "center",
+        },
+        secondaryButton: {
+            backgroundColor: theme.colors.accentSoft,
+            borderWidth: 1,
+            borderColor: theme.colors.accent,
+        },
+
+        secondaryButtonText: {
+            color: theme.colors.accent,
         },
     });
 }

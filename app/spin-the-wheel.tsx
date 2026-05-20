@@ -25,6 +25,7 @@ import {setCurrentClubBookAndAddToTbr, updateCurrentBookInSupabase} from "@/src/
 import {triggerRefresh} from "@/src/utils/refreshEvents";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {t} from "@/src/i18n";
+import {ChoiceStepper} from "@/src/components/ChoiceStepper";
 
 const WHEEL_SIZE = 280;
 const RADIUS = 130;
@@ -184,6 +185,8 @@ export default function SpinTheWheelScreen() {
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
             <ScreenTopBar title={t("spinWheel.title")} />
+            <ChoiceStepper currentStep={4} />
+
             <View style={styles.screen}>
                 <View style={styles.header}>
 
