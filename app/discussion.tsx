@@ -379,6 +379,41 @@ export default function DiscussionScreen() {
             setDeletingQuestionId(null);
         }
     }
+
+    async function handleDeleteAllQuestions() {
+        const confirmed = await showAppConfirm({
+            title: "Alle vragen wissen?",
+            message: "Weet je zeker dat je alle discussievragen en reacties wilt verwijderen?",
+            confirmText: "Wis alles",
+            cancelText: t("common.cancel"),
+        });
+
+        if (!confirmed) return;
+
+        try {
+            setIsRefreshing(true);
+
+            await Promise.all(
+                questions.map((question) =>
+                    deleteDiscussionQuestionInSupabase({
+                        questionId: question.id,
+                    })
+                )
+            );
+
+            await loadDiscussion();
+            triggerRefresh("club");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Er ging iets mis tijdens het wissen van alle vragen.";
+
+            showAppAlert("Wissen mislukt", message);
+        } finally {
+            setIsRefreshing(false);
+        }
+    }
     function handleStartEditReply(reply: DiscussionReply) {
         setEditingReplyId(reply.id);
         setEditingReplyText(reply.reply);
@@ -573,6 +608,15 @@ export default function DiscussionScreen() {
                             : t("discussion.newestFirst")}
                     </Text>
                 </Pressable>
+                {clubRole === "owner" ? (
+                    <Pressable
+                        style={styles.clearAllButton}
+                        onPress={handleDeleteAllQuestions}
+                    >
+                        <Feather name="trash-2" size={15} color={theme.colors.textMuted} />
+                        <Text style={styles.clearAllButtonText}>Wis alles</Text>
+                    </Pressable>
+                ) : null}
             </View>
         ) : null;
 
@@ -662,35 +706,36 @@ export default function DiscussionScreen() {
                                             </>
                                         ) : (
                                             <>
-                                                <Text style={styles.questionText}>{item.question}</Text>
+                                                <View style={styles.questionHeaderRow}>
+                                                    <Text style={styles.questionText}>{item.question}</Text>
+
+                                                    {(item.createdBy === currentUserId || clubRole === "owner") ? (
+                                                        <View style={styles.questionIconActions}>
+                                                            {item.createdBy === currentUserId ? (
+                                                                <Pressable
+                                                                    style={styles.questionIconButton}
+                                                                    onPress={() => handleStartEditQuestion(item)}
+                                                                >
+                                                                    <Feather name="edit-2" size={15} color={theme.colors.textMuted} />
+                                                                </Pressable>
+                                                            ) : null}
+
+                                                            <Pressable
+                                                                style={styles.questionIconButton}
+                                                                onPress={() => handleDeleteQuestion(item.id)}
+                                                                disabled={deletingQuestionId === item.id}
+                                                            >
+                                                                <Feather name="trash-2" size={15} color={theme.colors.textMuted} />
+                                                            </Pressable>
+                                                        </View>
+                                                    ) : null}
+                                                </View>
+
                                                 <Text style={styles.questionMeta}>
                                                     {t("discussion.questionAddedOn", {
                                                         date: formatQuestionDate(item.createdAt),
                                                     })}
                                                 </Text>
-
-                                                {item.createdBy === currentUserId || clubRole === "owner" ? (
-                                                    <View style={styles.replyActionsRow}>
-                                                        {item.createdBy === currentUserId ? (
-                                                            <Pressable
-                                                                style={styles.replyGhostButton}
-                                                                onPress={() => handleStartEditQuestion(item)}
-                                                            >
-                                                                <Text style={styles.replyGhostButtonText}>Edit</Text>
-                                                            </Pressable>
-                                                        ) : null}
-
-                                                        <Pressable
-                                                            style={styles.replyGhostButton}
-                                                            onPress={() => handleDeleteQuestion(item.id)}
-                                                            disabled={deletingQuestionId === item.id}
-                                                        >
-                                                            <Text style={styles.replyGhostButtonText}>
-                                                                {deletingQuestionId === item.id ? "Deleting..." : "Delete"}
-                                                            </Text>
-                                                        </Pressable>
-                                                    </View>
-                                                ) : null}
                                             </>
                                         )}
                                     </View>
@@ -1093,6 +1138,7 @@ function createStyles(theme: AppTheme) {
             gap: 6,
         },
         questionText: {
+            flex: 1,
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.md,
             lineHeight: 22,
@@ -1326,6 +1372,45 @@ function createStyles(theme: AppTheme) {
         questionSortButtonText: {
             color: theme.colors.accent,
             fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+        questionHeaderRow: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: theme.spacing.sm,
+        },
+
+        questionIconActions: {
+            flexDirection: "row",
+            gap: theme.spacing.xs,
+        },
+
+        questionIconButton: {
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+        clearAllButton: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+        },
+
+        clearAllButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
             fontWeight: theme.typography.fontWeight.medium,
         },
     });
