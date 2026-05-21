@@ -58,7 +58,7 @@ export async function fetchClubShortlist(clubId: string): Promise<ClubShortlistI
         `)
         .eq("club_id", trimmedClubId)
         .in("status", ["suggested", "shortlisted"])
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false });
 
     if (error) {
         throw error;

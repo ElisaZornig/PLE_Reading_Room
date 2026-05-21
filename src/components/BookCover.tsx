@@ -5,14 +5,31 @@ type Props = {
     title: string;
     cover?: string;
     small?: boolean;
+    width?: number;
+    height?: number;
+    borderRadius?: number;
 };
 
-export function BookCover({ title, cover, small = false }: Props) {
-    const width = small ? 52 : 70;
-    const height = small ? 74 : 100;
+export function BookCover({
+                              title,
+                              cover,
+                              small = false,
+                              width,
+                              height,
+                              borderRadius = 14,
+                          }: Props) {
+    const coverWidth = width ?? (small ? 52 : 70);
+    const coverHeight = height ?? (small ? 74 : 100);
 
     if (!cover) {
-        return <CoverPlaceholder title={title} small={small} />;
+        return (
+            <CoverPlaceholder
+                title={title}
+                width={coverWidth}
+                height={coverHeight}
+                borderRadius={borderRadius}
+            />
+        );
     }
 
     return (
@@ -21,8 +38,9 @@ export function BookCover({ title, cover, small = false }: Props) {
             style={[
                 styles.image,
                 {
-                    width,
-                    height,
+                    width: coverWidth,
+                    height: coverHeight,
+                    borderRadius,
                 },
             ]}
         />
@@ -31,6 +49,6 @@ export function BookCover({ title, cover, small = false }: Props) {
 
 const styles = StyleSheet.create({
     image: {
-        borderRadius: 12,
+        resizeMode: "cover",
     },
 });

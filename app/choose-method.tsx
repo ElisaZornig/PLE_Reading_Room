@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {router, useFocusEffect, useLocalSearchParams} from "expo-router";
+import {useCallback, useMemo, useState} from "react";
+import {Alert, Pressable, ScrollView, StyleSheet, Text, View} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ChoiceStepper } from "@/src/components/ChoiceStepper";
@@ -9,16 +9,135 @@ import { ScreenTopBar } from "@/src/components/ScreenTopBar";
 import { t } from "@/src/i18n";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
+import {createClubSwipeSession, fetchClubSwipeState, SwipeState} from "@/src/services/supabaseSwipe";
+import {showAppAlert, showAppConfirm} from "@/src/utils/appAlert";
 
 export default function ChooseMethodScreen() {
     const theme = useAppTheme();
     const styles = createStyles(theme);
     const params = useLocalSearchParams();
-
+    const [activeSession, setActiveSession] = useState(false);
+    const [hasCompletedSwipe, setHasCompletedSwipe] = useState(false);
+    const [isOwner] = useState(true);
+    const [swipeState, setSwipeState] = useState<SwipeState | null>(null);
+    const [isLoadingSwipeState, setIsLoadingSwipeState] = useState(true);
     const clubId = useMemo(() => {
         const value = params.clubId;
         return Array.isArray(value) ? value[0] : value;
     }, [params.clubId]);
+
+    async function loadSwipeState() {
+        if (!clubId) return;
+
+        try {
+            setIsLoadingSwipeState(true);
+            const data = await fetchClubSwipeState(clubId);
+            setSwipeState(data);
+        } catch (error) {
+            console.error("Error loading swipe state:", error);
+        } finally {
+            setIsLoadingSwipeState(false);
+        }
+    }
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadSwipeState();
+        }, [clubId])
+    );
+
+
+
+    function getSwipeSubtitle() {
+        if (isLoadingSwipeState) {
+            return "Swipe ronde laden...";
+        }
+
+        if (!swipeState?.activeSessionId && !swipeState?.isOwner) {
+            return "De owner moet eerst een swipe ronde openen.";
+        }
+
+        if (!swipeState?.activeSessionId && swipeState?.isOwner) {
+            return "Open een swipe ronde met de huidige shortlist.";
+        }
+
+        if (swipeState?.hasCompletedSwipe) {
+            return "Bekijk de huidige swipe resultaten.";
+        }
+
+        return "Swipe door de shortlist en stem samen.";
+    }
+
+    function getSwipeLabel() {
+        if (isLoadingSwipeState) return "Laden";
+        if (!swipeState?.activeSessionId && !swipeState?.isOwner) return "Gesloten";
+        if (!swipeState?.activeSessionId && swipeState?.isOwner) return "Openen";
+        if (swipeState?.hasCompletedSwipe) return "Resultaten";
+        return "Swipe nu";
+    }
+
+    async function handleSwipePress() {
+        if (!clubId || isLoadingSwipeState) return;
+
+        if (!swipeState?.activeSessionId && swipeState?.isOwner) {
+            const confirmed = await showAppConfirm({
+                title: "Swipe ronde openen?",
+                message:
+                    "De huidige shortlist wordt gebruikt. Boeken die later worden toegevoegd, zitten niet automatisch in deze ronde.",
+                confirmText: "Openen",
+                cancelText: "Annuleren",
+            });
+
+            if (!confirmed) return;
+
+            try {
+                const session = await createClubSwipeSession(clubId);
+                await loadSwipeState();
+
+                router.push({
+                    pathname: "/swipe-books",
+                    params: {
+                        clubId,
+                        sessionId: session.id,
+                    },
+                });
+            } catch (error) {
+                showAppAlert(
+                    "Swipe ronde niet geopend",
+                    error instanceof Error ? error.message : "Probeer het opnieuw."
+                );
+            }
+
+            return;
+        }
+
+        if (!swipeState?.activeSessionId) {
+            showAppAlert(
+                "Swipe ronde gesloten",
+                "De owner moet eerst een swipe ronde openen."
+            );
+            return;
+        }
+
+        if (swipeState.hasCompletedSwipe) {
+            router.push({
+                pathname: "/swipe-results",
+                params: {
+                    clubId,
+                    sessionId: swipeState.activeSessionId,
+                },
+            });
+            return;
+        }
+
+        router.push({
+            pathname: "/swipe-books",
+            params: {
+                clubId,
+                sessionId: swipeState.activeSessionId,
+            },
+        });
+    }
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -63,9 +182,9 @@ export default function ChooseMethodScreen() {
                     <MethodCard
                         icon="layers"
                         title={t("chooseMethod.swipeTitle")}
-                        subtitle={t("chooseMethod.swipeSubtitle")}
-                        label={t("chooseMethod.later")}
-                        disabled
+                        subtitle={getSwipeSubtitle()}
+                        label={getSwipeLabel()}
+                        onPress={handleSwipePress}
                         theme={theme}
                     />
                 </View>

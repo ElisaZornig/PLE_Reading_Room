@@ -23,7 +23,7 @@ import {
     addManualBookToClubShortlist,
     fetchClubShortlist,
     removeBookFromClubShortlist,
-    type ClubShortlistItem,
+    type ClubShortlistItem, clearClubShortlist,
 } from "@/src/services/supabaseClubShortlist";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
@@ -58,6 +58,8 @@ export default function ChooseNextBookScreen() {
     const [manualAuthor, setManualAuthor] = useState("");
     const [manualYear, setManualYear] = useState("");
     const [isAddingManualBook, setIsAddingManualBook] = useState(false);
+    const [addedSearchBookIds, setAddedSearchBookIds] = useState<Set<string>>(new Set());
+    const [isClearingShortlist, setIsClearingShortlist] = useState(false);
     async function loadShortlist() {
         try {
             setIsLoadingShortlist(true);
@@ -108,12 +110,22 @@ export default function ChooseNextBookScreen() {
     }
 
     async function handleAddBook(item: SearchBookResult) {
+        if (addedSearchBookIds.has(item.id) || isAddingBookId === item.id) {
+            return;
+        }
+
         try {
             setIsAddingBookId(item.id);
 
             await addManualBookToClubShortlist({
                 clubId: clubId ?? "",
                 book: item,
+            });
+
+            setAddedSearchBookIds((current) => {
+                const next = new Set(current);
+                next.add(item.id);
+                return next;
             });
 
             await loadShortlist();
@@ -182,6 +194,62 @@ export default function ChooseNextBookScreen() {
                 },
             ]
         );
+    }
+
+    function handleClearShortlist() {
+        if (shortlistBooks.length === 0 || isClearingShortlist) {
+            return;
+        }
+
+        if (Platform.OS === "web") {
+            const confirmed = globalThis.confirm?.(
+                t("chooseNextBook.clearShortlistConfirm.message")
+            );
+
+            if (confirmed) {
+                void clearShortlist();
+            }
+
+            return;
+        }
+
+        Alert.alert(
+            t("chooseNextBook.clearShortlistConfirm.title"),
+            t("chooseNextBook.clearShortlistConfirm.message"),
+            [
+                {
+                    text: t("chooseNextBook.clearShortlistConfirm.cancel"),
+                    style: "cancel",
+                },
+                {
+                    text: t("chooseNextBook.clearShortlistConfirm.confirm"),
+                    style: "destructive",
+                    onPress: () => void clearShortlist(),
+                },
+            ]
+        );
+    }
+
+    async function clearShortlist() {
+        try {
+            setIsClearingShortlist(true);
+
+            await clearClubShortlist(clubId ?? "");
+
+            setShortlistBooks([]);
+            setAddedSearchBookIds(new Set());
+        } catch (error) {
+            console.error("Error clearing shortlist:", error);
+
+            Alert.alert(
+                t("chooseNextBook.errors.clearShortlistTitle"),
+                error instanceof Error
+                    ? error.message
+                    : t("chooseNextBook.errors.clearShortlistMessage")
+            );
+        } finally {
+            setIsClearingShortlist(false);
+        }
     }
 
     async function handleAddManualBook() {
@@ -351,8 +419,7 @@ export default function ChooseNextBookScreen() {
                             <View style={styles.resultsList}>
                                 {searchResults.map((item) => {
                                     const isAdding = isAddingBookId === item.id;
-                                    const isAlreadyAdded = shortlistBookIds.has(item.id);
-
+                                    const isAlreadyAdded = addedSearchBookIds.has(item.id);
                                     return (
                                         <View key={item.id} style={styles.resultCard}>
                                             <BookCover
@@ -385,7 +452,12 @@ export default function ChooseNextBookScreen() {
                                                 onPress={() => handleAddBook(item)}
                                                 disabled={isAdding || isAlreadyAdded}
                                             >
-                                                <Text style={styles.addSmallButtonText}>
+                                                <Text
+                                                    style={[
+                                                        styles.addSmallButtonText,
+                                                        (isAdding || isAlreadyAdded) && styles.addSmallButtonTextDisabled,
+                                                    ]}
+                                                >
                                                     {isAlreadyAdded
                                                         ? t("chooseNextBook.added")
                                                         : isAdding
@@ -446,9 +518,33 @@ export default function ChooseNextBookScreen() {
                     </View>
                 ) : null}
 
-                <Text style={styles.shortlistHeading}>
-                    {t("chooseNextBook.yourShortlist")}
-                </Text>
+                <View style={styles.shortlistHeaderRow}>
+                    <Text style={styles.shortlistHeading}>
+                        {t("chooseNextBook.yourShortlist")}
+                    </Text>
+
+                    {shortlistBooks.length > 0 ? (
+                        <Pressable
+                            style={[
+                                styles.clearShortlistButton,
+                                isClearingShortlist && styles.clearShortlistButtonDisabled,
+                            ]}
+                            onPress={handleClearShortlist}
+                            disabled={isClearingShortlist}
+                        >
+                            <Feather
+                                name="trash-2"
+                                size={14}
+                                color={theme.colors.danger}
+                            />
+                            <Text style={styles.clearShortlistButtonText}>
+                                {isClearingShortlist
+                                    ? t("chooseNextBook.clearingShortlist")
+                                    : t("chooseNextBook.clearShortlist")}
+                            </Text>
+                        </Pressable>
+                    ) : null}
+                </View>
 
                 {isLoadingShortlist ? (
                     <Text style={styles.stateText}>{t("common.loading")}</Text>
@@ -755,12 +851,17 @@ function createStyles(theme: AppTheme) {
             justifyContent: "center",
         },
         addSmallButtonDisabled: {
-            opacity: 0.7,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
         },
         addSmallButtonText: {
             color: "#FFFFFF",
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
+        },
+        addSmallButtonTextDisabled: {
+            color: theme.colors.textMuted,
         },
         primaryButtonDisabled: {
             opacity: 0.7,
@@ -867,7 +968,6 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.md,
             fontWeight: theme.typography.fontWeight.semibold,
-            marginBottom: theme.spacing.sm,
         },
 
         shortlistCard: {
@@ -929,6 +1029,36 @@ function createStyles(theme: AppTheme) {
         manualAddButtonText: {
             color: "#FFFFFF",
             fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        shortlistHeaderRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.sm,
+            marginBottom: theme.spacing.sm,
+        },
+
+        clearShortlistButton: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.xs,
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.danger,
+            paddingHorizontal: theme.spacing.md,
+            paddingVertical: 8,
+        },
+
+        clearShortlistButtonDisabled: {
+            opacity: 0.5,
+        },
+
+        clearShortlistButtonText: {
+            color: theme.colors.danger,
+            fontSize: theme.typography.fontSize.xs,
             fontWeight: theme.typography.fontWeight.semibold,
         },
     });
