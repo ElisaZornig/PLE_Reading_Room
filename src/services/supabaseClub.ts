@@ -12,6 +12,9 @@ type ClubMeeting = {
     id: string;
     meetingDate: string;
     location: string | null;
+    notes?: string | null;
+    title?: string | null;
+
 };
 
 export type ClubOverview = {
@@ -99,7 +102,7 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
             .eq('club_id', clubId),
         supabase
             .from('club_meetings')
-            .select('id, meeting_date, location')
+            .select('id, meeting_date, location, notes, title')
             .eq('club_id', clubId)
             .order('meeting_date', { ascending: true })
             .limit(1)
@@ -209,6 +212,7 @@ export async function fetchClubOverviewFromSupabase(): Promise<ClubOverview | nu
                 id: meetingResult.data.id,
                 meetingDate: meetingResult.data.meeting_date,
                 location: meetingResult.data.location,
+                notes: meetingResult.data.notes,
             }
             : null,
         commentVisibilityMode:
@@ -842,6 +846,7 @@ export type ClubMemberProgress = {
     progress: number;
     avatarId: string | null;
     avatarBackgroundColor: string | null;
+    lastUpdatedAt?: string | null;
 };
 
 export async function fetchClubMemberProgress(input: {
@@ -879,7 +884,7 @@ export async function fetchClubMemberProgress(input: {
         currentBookId
             ? supabase
                 .from("user_books")
-                .select("user_id, status, progress")
+                .select("user_id, status, progress, updated_at")
                 .eq("book_id", currentBookId)
                 .in("user_id", userIds)
             : Promise.resolve({ data: [], error: null }),
@@ -910,6 +915,7 @@ export async function fetchClubMemberProgress(input: {
             {
                 status: row.status ?? null,
                 progress: row.progress ?? 0,
+                lastUpdatedAt: row.updated_at ?? null,
             },
         ])
     );
@@ -920,6 +926,7 @@ export async function fetchClubMemberProgress(input: {
         role: member.role,
         status: progressMap[member.user_id]?.status ?? null,
         progress: progressMap[member.user_id]?.progress ?? 0,
+        lastUpdatedAt: progressMap[member.user_id]?.lastUpdatedAt ?? null,
         avatarId: profileMap[member.user_id]?.avatarId ?? null,
         avatarBackgroundColor:
             profileMap[member.user_id]?.avatarBackgroundColor ?? null,

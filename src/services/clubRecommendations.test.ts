@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { __testing } from "./clubRecommendations";
+
 
 vi.mock("./supabase", () => ({
     supabase: {
@@ -9,8 +11,37 @@ vi.mock("./supabase", () => ({
 vi.mock("./supabaseUserBooks", () => ({
     getCurrentSupabaseUserId: vi.fn(),
 }));
+vi.mock("@/src/i18n", () => ({
+    t: (key: string, params?: Record<string, string | number>) => {
+        const translations: Record<string, string> = {
+            "recommendations.languageEnglish": "English",
+            "recommendations.languageDutch": "Dutch",
 
-import { __testing } from "./clubRecommendations";
+            "recommendations.reasonTbrOne":
+                "This book is already on 1 member's TBR.",
+            "recommendations.reasonTbrMultiple":
+                "This book is already on %{count} members' TBRs.",
+            "recommendations.reasonOverlapTwo":
+                "Recommended because your club overlaps on %{genreOne} and %{genreTwo}.",
+            "recommendations.reasonOneGenre":
+                "Recommended because %{count}/%{total} members show interest in %{genre}.",
+            "recommendations.reasonProfile":
+                "Recommended because it matches your club's reading profile.",
+            "recommendations.reasonLanguage":
+                "It also fits your language preference: %{languages}.",
+            "recommendations.reasonNewerBooks":
+                "It also fits the club's preference for newer books.",
+        };
+
+        let value = translations[key] ?? key;
+
+        for (const [paramKey, paramValue] of Object.entries(params ?? {})) {
+            value = value.replace(`%{${paramKey}}`, String(paramValue));
+        }
+
+        return value;
+    },
+}));
 
 describe("clubRecommendations recommendation rules", () => {
     it("normaliseert taalvoorkeuren naar OpenLibrary taalcodes", () => {
@@ -183,4 +214,45 @@ describe("clubRecommendations recommendation rules", () => {
 
         expect(reason).toContain("matches your club's reading profile");
     });
+    it("haalt series positions uit getallen, strings en arrays", () => {
+        expect(__testing.getSeriesPositions(1)).toEqual([1]);
+        expect(__testing.getSeriesPositions("2")).toEqual([2]);
+        expect(__testing.getSeriesPositions(["1", "3"])).toEqual([1, 3]);
+        expect(__testing.getSeriesPositions(null)).toEqual([]);
+        expect(__testing.getSeriesPositions(undefined)).toEqual([]);
+    });
+
+    it("laat boeken zonder series_position toe", () => {
+        expect(
+            __testing.hasAllowedSeriesPosition({
+                title: "Standalone Book",
+            })
+        ).toBe(true);
+    });
+
+    it("laat alleen eerste delen van series toe als series_position bestaat", () => {
+        expect(
+            __testing.hasAllowedSeriesPosition({
+                title: "First Book",
+                series_position: 1,
+            })
+        ).toBe(true);
+
+        expect(
+            __testing.hasAllowedSeriesPosition({
+                title: "Second Book",
+                series_position: 2,
+            })
+        ).toBe(false);
+    });
+
+    it("laat een boek toe als één van de series positions 1 is", () => {
+        expect(
+            __testing.hasAllowedSeriesPosition({
+                title: "Series Starter",
+                series_position: [1, 2],
+            })
+        ).toBe(true);
+    });
 });
+

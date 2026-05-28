@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { getCurrentSupabaseUserId } from "./supabaseUserBooks";
 import { normalizeOpenLibraryWorkId } from "@/src/utils/openLibrary";
+import {t} from "@/src/i18n";
 
 export type ClubGenreScore = {
     genre: string;
@@ -75,6 +76,8 @@ type OpenLibrarySearchDoc = {
     first_publish_year?: number;
     subject?: string[];
     language?: string[];
+    series?: string[];
+    series_position?: number | string | Array<number | string> | null;
 };
 
 type OpenLibrarySearchResponse = {
@@ -276,10 +279,6 @@ const LANGUAGE_ALIASES: Record<string, string> = {
     nl: "dut",
 };
 
-const LANGUAGE_LABELS: Record<string, string> = {
-    eng: "English",
-    dut: "Dutch",
-};
 
 const clubAnalysisCache = new Map<
     string,
@@ -322,9 +321,16 @@ function normalizeLanguage(value: string) {
     return LANGUAGE_ALIASES[normalized] ?? normalized;
 }
 
+const LANGUAGE_LABEL_KEYS: Record<string, string> = {
+    eng: "recommendations.languageEnglish",
+    dut: "recommendations.languageDutch",
+};
+
 function formatLanguageLabel(language: string) {
     const normalized = normalizeLanguage(language);
-    return LANGUAGE_LABELS[normalized] ?? normalized.toUpperCase();
+    const labelKey = LANGUAGE_LABEL_KEYS[normalized];
+
+    return labelKey ? t(labelKey) : normalized.toUpperCase();
 }
 
 function canonicalizeSubject(rawValue: string) {
@@ -856,6 +862,39 @@ function extractSeriesNumberFromText(value: string) {
     return null;
 }
 
+function getSeriesPositions(value: OpenLibrarySearchDoc["series_position"]) {
+    const values = Array.isArray(value) ? value : [value];
+
+    return values
+        .map((item) => {
+            if (typeof item === "number") {
+                return Number.isFinite(item) ? item : null;
+            }
+
+            if (typeof item === "string") {
+                const match = item.match(/\d+(\.\d+)?/);
+                const number = match ? Number(match[0]) : null;
+
+                return number && Number.isFinite(number) ? number : null;
+            }
+
+            return null;
+        })
+        .filter((item): item is number => item !== null);
+}
+
+function hasAllowedSeriesPosition(doc: OpenLibrarySearchDoc) {
+    const positions = getSeriesPositions(doc.series_position);
+
+    // Geen series_position? Dan niet blokkeren, want Open Library heeft dit veld niet altijd.
+    if (positions.length === 0) {
+        return true;
+    }
+
+    // Als er wel een positie is, alleen deel 1 toestaan.
+    return positions.some((position) => position === 1);
+}
+
 function isLikelyLaterSeriesBook(input: {
     title: string;
     series?: string[];
@@ -1263,7 +1302,7 @@ async function searchOpenLibrary(
     const params = new URLSearchParams({
         q: queryParts.join(" "),
         fields:
-            "key,title,author_name,cover_i,first_publish_year,subject,language,readinglog_count,ratings_count",
+            "key,title,author_name,cover_i,first_publish_year,subject,language,series,series_position,readinglog_count,ratings_count",
         limit: String(limit),
     });
 
@@ -1388,34 +1427,46 @@ function buildRecommendationReason(
 
     const primarySubjects = sortedSubjects.slice(0, 2);
     const reasonParts: string[] = [];
+
     if (candidate.tbrMemberCount && candidate.tbrMemberCount > 0) {
         reasonParts.push(
             candidate.tbrMemberCount === 1
-                ? "This book is already on 1 member's TBR."
-                : `This book is already on ${candidate.tbrMemberCount} members' TBRs.`
+                ? t("recommendations.reasonTbrOne")
+                : t("recommendations.reasonTbrMultiple", {
+                    count: candidate.tbrMemberCount,
+                })
         );
     }
 
     if (primarySubjects.length >= 2) {
         reasonParts.push(
-            `Recommended because your club overlaps on ${primarySubjects[0]} and ${primarySubjects[1]}.`
+            t("recommendations.reasonOverlapTwo", {
+                genreOne: primarySubjects[0],
+                genreTwo: primarySubjects[1],
+            })
         );
     } else if (primarySubjects.length === 1) {
         const memberCoverage =
             analysis.subjectScoreMap.get(primarySubjects[0])?.memberCount ?? 0;
 
         reasonParts.push(
-            `Recommended because ${memberCoverage}/${analysis.memberCount} members show interest in ${primarySubjects[0]}.`
+            t("recommendations.reasonOneGenre", {
+                count: memberCoverage,
+                total: analysis.memberCount,
+                genre: primarySubjects[0],
+            })
         );
     } else {
-        reasonParts.push(`Recommended because it matches your club's reading profile.`);
+        reasonParts.push(t("recommendations.reasonProfile"));
     }
 
     if (candidate.matchedLanguages.length > 0) {
         reasonParts.push(
-            `It also fits ${candidate.matchedLanguages
-                .map(formatLanguageLabel)
-                .join(" and ")} reading preferences.`
+            t("recommendations.reasonLanguage", {
+                languages: candidate.matchedLanguages
+                    .map(formatLanguageLabel)
+                    .join(" / "),
+            })
         );
     }
 
@@ -1424,7 +1475,7 @@ function buildRecommendationReason(
         analysis.preferredYear &&
         candidate.firstPublishYear >= analysis.preferredYear - 10
     ) {
-        reasonParts.push(`It also fits the club's preference for newer books.`);
+        reasonParts.push(t("recommendations.reasonNewerBooks"));
     }
 
     return reasonParts.join(" ");
@@ -1540,8 +1591,16 @@ export async function generateClubRecommendations(input: {
                 continue;
             }
 
-            if (isLikelyLaterSeriesBook({ title })) {
-                debugLog("excluded later series book", title);
+            if (!hasAllowedSeriesPosition(doc)) {
+                debugLog("excluded later series book by series_position", {
+                    title,
+                    seriesPosition: doc.series_position,
+                });
+                continue;
+            }
+
+            if (isLikelyLaterSeriesBook({ title, series: doc.series })) {
+                debugLog("excluded later series book by title/series text", title);
                 continue;
             }
 
@@ -1867,4 +1926,6 @@ export const __testing = {
     buildRecommendationReason,
     isLikelyLaterSeriesBook,
     looksLikeExcludedFormat,
+    getSeriesPositions,
+    hasAllowedSeriesPosition,
 };

@@ -43,6 +43,7 @@ const nl = {
         deleteError: "Het verwijderen van het boek is mislukt.",
         page: "Pagina",
         pageOf: "van",
+        review: "Review",
     },
     club: {
         members: "Leden",
@@ -131,6 +132,14 @@ const nl = {
 
         chooseNextKnowsBookTitle: "We weten het boek al",
         chooseNextKnowsBookSubtitle: "Zoek of voeg één boek toe en stel dit direct in als clubboek.",
+        lastUpdatedNever: "Nog niet bijgewerkt",
+        lastUpdatedToday: "Vandaag bijgewerkt",
+        lastUpdatedYesterday: "Gisteren bijgewerkt",
+        lastUpdatedDaysAgo: "%{count} dagen geleden bijgewerkt",
+        lastUpdatedOn: "Bijgewerkt op %{date}",
+        manageMeeting: "Beheren",
+        manageMeetingHint: "Pas de meeting aan of prik samen een nieuwe datum.",
+        planMeetingHint: "Plan direct een meeting of start een datumprikker.",
     },
     chooseBook: {
         title: "Kies een nieuw boek",
@@ -148,7 +157,8 @@ const nl = {
         save: "Opslaan",
         edit: "Bewerken",
         delete: "Verwijderen",
-        close: "Sluiten"
+        close: "Sluiten",
+        done: "Klaar"
     },
         bookStatus: {
             toRead: "Wil lezen",
@@ -502,6 +512,16 @@ const nl = {
         removeConfirmText: "Wil je dit boek uit de shortlist verwijderen?",
 
         bookFallback: "Boek",
+        languageEnglish: "Engels",
+        languageDutch: "Nederlands",
+
+        reasonTbrOne: "Dit boek staat al op de TBR van 1 clublid.",
+        reasonTbrMultiple: "Dit boek staat al op de TBR van %{count} clubleden.",
+        reasonOverlapTwo: "Aanbevolen omdat jullie club veel overlap heeft in %{genreOne} en %{genreTwo}.",
+        reasonOneGenre: "Aanbevolen omdat %{count}/%{total} leden interesse tonen in %{genre}.",
+        reasonProfile: "Aanbevolen omdat dit boek past bij het leesprofiel van jullie club.",
+        reasonLanguage: "Past ook bij jullie taalvoorkeur: %{languages}.",
+        reasonNewerBooks: "Past ook bij jullie voorkeur voor nieuwere boeken.",
     },
     createClub: {
         title: "Creëer club"
@@ -585,6 +605,7 @@ const nl = {
         light: "Licht",
         dark: "Donker",
         green: "Groen",
+        yellow: "Geel",
         save: "Opslaan",
         saving: "Opslaan...",
         errorTitle: "Voorkeuren opslaan mislukt",
@@ -646,6 +667,7 @@ const nl = {
         noReadBooks: "Nog geen gelezen boeken zichtbaar.",
         unknownUser: "Onbekende gebruiker",
         privateProfile: "Je kunt dit leesprofiel alleen bekijken als jullie vrienden zijn.",
+        review: "Review",
     },
     chooseMethod: {
         screenTitle: "Kiesmethode",
@@ -710,6 +732,96 @@ const nl = {
         makeCurrentConfirmMessage: "Dit boek wordt ingesteld als huidig clubboek en uit de shortlist gehaald. De rest van de shortlist blijft bewaard.",
         makeCurrentConfirmButton: "Instellen",
         makeCurrentConfirmCancel: "Annuleren",
+    },
+    clubMeeting: {
+        title: "Meeting plannen",
+        loading: "Meetinginformatie laden...",
+        loadError: "De meetinginformatie kon niet worden geladen.",
+
+        currentMeetingTitle: "Officiële meeting",
+        editMeetingTitle: "Huidige meeting aanpassen",
+        editMeetingText: "Wijzig de datum, tijd, locatie of notitie van de meeting die nu vaststaat.",
+
+        directMeetingTitle: "Direct een meeting vastzetten",
+        directMeetingText: "Kies zelf meteen een nieuwe datum, tijd, locatie en notitie zonder stemming.",
+
+        pollMeetingTitle: "Nieuwe datumprikker starten",
+        pollMeetingText: "Laat iedereen data en locaties toevoegen en stemmen voordat de meeting wordt vastgezet.",
+
+        continuePollTitle: "Datumprikker verder invullen",
+        continuePollText: "Er loopt al een stemming voor de volgende meeting.",
+        activePollBadge: "Actieve stemming",
+
+        ownerConfirmText: "Iedereen kan opties toevoegen en stemmen. De eigenaar zet de meeting uiteindelijk vast.",
+        defaultPollTitle: "Nieuwe boekenclubmeeting",
+        pollStartErrorTitle: "Datumprikker niet gestart",
+        pollStartErrorText: "Probeer het opnieuw.",
+    },
+    meetingPoll: {
+        title: "Samen datum prikken",
+        loading: "Datumprikker laden...",
+        noPoll: "Er is geen open datumprikker gevonden.",
+        loadErrorTitle: "Niet gelukt",
+        loadErrorText: "De datumprikker kon niet worden geladen.",
+
+        introTitle: "Plan samen de volgende meeting",
+        introText: "Iedereen kan data en locaties toevoegen. Daarna stemt de club en zet de eigenaar de meeting vast.",
+
+        dateOptionsTitle: "Datumopties",
+        datePlaceholder: "YYYY-MM-DD",
+        timePlaceholder: "Tijd",
+        addDate: "Datum toevoegen",
+        noDatesYet: "Er zijn nog geen datumopties toegevoegd.",
+
+        locationOptionsTitle: "Locatie-opties",
+        locationPlaceholder: "Bijvoorbeeld: bij Emma thuis",
+        addLocation: "Locatie toevoegen",
+        noLocationsYet: "Er zijn nog geen locatie-opties toegevoegd.",
+
+        addDateErrorTitle: "Datum niet toegevoegd",
+        addDateErrorText: "Controleer de datum en probeer het opnieuw.",
+        addLocationErrorTitle: "Locatie niet toegevoegd",
+        addLocationErrorText: "Controleer de locatie en probeer het opnieuw.",
+
+        voteErrorTitle: "Stem niet opgeslagen",
+        voteErrorText: "Probeer het opnieuw.",
+
+        can: "kan",
+        maybe: "misschien",
+        cannot: "kan niet",
+        available: "Kan",
+        maybeAvailable: "Misschien",
+        unavailable: "Kan niet",
+        bestOption: "Beste optie",
+        timeToBeDecided: "tijd volgt nog",
+
+        voteLocation: "Stem op deze plek",
+        votedLocation: "Gestemd",
+        locationVotes: "%{count} stemmen",
+
+        confirmTitle: "Meeting vastzetten",
+        confirmOwnerText: "Kies de beste datum en eventueel een locatie. Alleen de eigenaar kan de meeting nu vastzetten.",
+        confirmMemberText: "Je kunt opties toevoegen en stemmen. De eigenaar zet de definitieve meeting vast.",
+        confirmButton: "Maak hiervan de meeting",
+        confirming: "Meeting opslaan...",
+        confirmMissingTitle: "Kies eerst een datum",
+        confirmMissingText: "Selecteer een datumoptie voordat je de meeting vastzet.",
+        confirmSuccessTitle: "Meeting gepland",
+        confirmSuccessText: "De datumprikker is omgezet naar de officiële meeting.",
+        confirmErrorTitle: "Meeting niet opgeslagen",
+        confirmErrorText: "Probeer het opnieuw.",
+        dateLabel: "Datum",
+        chooseDate: "Kies een datum",
+        timeOptional: "Tijd toevoegen (optioneel)",
+        timeOptionalHint: "Tijd is optioneel. Je kunt ook eerst alleen een datum toevoegen.",
+        clearTime: "Tijd wissen",
+        chooseDateFirst: "Kies eerst een datum.",
+        unvoteLocation: "Stem weghalen",
+        selectedOptionsTitle: "Gekozen opties",
+        noDateSelected: "Nog geen datum gekozen",
+        noLocationSelected: "Nog geen locatie gekozen",
+        deleteDateErrorTitle: "Datum niet verwijderd",
+        deleteDateErrorText: "Probeer het opnieuw.",
     },
 
 

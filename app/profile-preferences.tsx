@@ -27,8 +27,13 @@ import {
 
 
 
-const THEME_OPTIONS: ThemePreference[] = ["system", "light", "dark", "green"];
-
+const THEME_OPTIONS: ThemePreference[] = [
+    "system",
+    "light",
+    "dark",
+    "green",
+    "yellow",
+];
 type ProfilePreferences = {
     id: string;
     favorite_genres: string[] | null;
@@ -73,7 +78,8 @@ export default function ProfilePreferencesScreen() {
                 data.app_theme === "light" ||
                 data.app_theme === "dark" ||
                 data.app_theme === "system" ||
-                data.app_theme === "green"
+                data.app_theme === "green" ||
+                data.app_theme === "yellow"
                     ? data.app_theme
                     : "system";
 

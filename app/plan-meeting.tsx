@@ -197,7 +197,7 @@ export default function PlanMeetingScreen() {
             });
 
             triggerRefresh("club", "home");
-            router.back();
+            router.replace("/club");
         } catch (error) {
             const message =
                 error instanceof Error

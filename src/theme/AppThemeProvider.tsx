@@ -5,9 +5,9 @@ import React, {
     useState,
 } from "react";
 import { useColorScheme } from "react-native";
-import { darkTheme, greenTheme, lightTheme } from "./theme";
+import { darkTheme, greenTheme, lightTheme, yellowTheme } from "./theme";
 
-export type ThemePreference = "system" | "light" | "dark" | "green";
+export type ThemePreference = "system" | "light" | "dark" | "green" | "yellow";
 
 type AppThemeContextValue = {
     themePreference: ThemePreference;
@@ -22,7 +22,8 @@ export function isThemePreference(value: unknown): value is ThemePreference {
         value === "system" ||
         value === "light" ||
         value === "dark" ||
-        value === "green"
+        value === "green" ||
+        value === "yellow"
     );
 }
 
@@ -45,7 +46,9 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
                 ? lightTheme
                 : themePreference === "dark"
                     ? darkTheme
-                    : greenTheme;
+                    : themePreference === "green"
+                        ? greenTheme
+                        : yellowTheme;
 
     const value = useMemo(
         () => ({

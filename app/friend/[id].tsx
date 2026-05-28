@@ -305,47 +305,96 @@ function BookListCard({
 
     return (
         <View style={styles.listBookCard}>
-            <BookCover
-                title={book.title}
-                cover={book.coverUrl ?? undefined}
-                small
-            />
+            <View style={styles.listBookTopRow}>
+                <BookCover
+                    title={book.title}
+                    cover={book.coverUrl ?? undefined}
+                    small
+                />
 
-            <View style={styles.bookTextContent}>
-                <Text style={styles.bookTitle}>{book.title}</Text>
+                <View style={styles.bookTextContent}>
+                    <Text style={styles.bookTitle}>{book.title}</Text>
 
-                {book.author ? (
-                    <Text style={styles.bookAuthor}>{book.author}</Text>
-                ) : null}
+                    {book.author ? (
+                        <Text style={styles.bookAuthor}>{book.author}</Text>
+                    ) : null}
 
-                {showProgress ? (
-                    <View style={styles.progressRow}>
-                        <Progress.Bar
-                            progress={progress / 100}
-                            width={null}
-                            height={7}
-                            color={theme.colors.accent}
-                            unfilledColor={theme.colors.accentSoft}
-                            borderWidth={0}
-                            style={styles.progressBar}
-                        />
+                    {showProgress ? (
+                        <View style={styles.progressRow}>
+                            <Progress.Bar
+                                progress={progress / 100}
+                                width={null}
+                                height={7}
+                                color={theme.colors.accent}
+                                unfilledColor={theme.colors.accentSoft}
+                                borderWidth={0}
+                                style={styles.progressBar}
+                            />
 
-                        <Text style={styles.progressText}>{progress}%</Text>
-                    </View>
-                ) : null}
+                            <Text style={styles.progressText}>{progress}%</Text>
+                        </View>
+                    ) : null}
 
-                {showRating && book.rating ? (
-                    <View style={styles.ratingRow}>
-                        <StarRatingDisplay value={book.rating} />
-                    </View>
-                ) : null}
+                    {showRating && book.rating ? (
+                        <View style={styles.ratingRow}>
+                            <StarRatingDisplay value={book.rating} />
+                        </View>
+                    ) : null}
+                </View>
             </View>
+
+            {showRating && book.review?.trim() ? (
+                <View style={styles.reviewNoteBox}>
+                    <Feather
+                        name="message-square"
+                        size={14}
+                        color={theme.colors.accent}
+                    />
+
+                    <Text style={styles.reviewNoteText} numberOfLines={3}>
+                        {book.review.trim()}
+                    </Text>
+                </View>
+            ) : null}
         </View>
     );
 }
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        listBookCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            marginBottom: theme.spacing.sm,
+            gap: theme.spacing.md,
+        },
+
+        listBookTopRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.md,
+        },
+
+        reviewNoteBox: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: theme.spacing.xs,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+        },
+
+        reviewNoteText: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
         content: {
             paddingHorizontal: theme.spacing.lg,
             paddingTop: theme.spacing.md,
@@ -461,17 +510,6 @@ function createStyles(theme: AppTheme) {
             fontSize: theme.typography.fontSize.sm,
             fontWeight: theme.typography.fontWeight.semibold,
         },
-        listBookCard: {
-            backgroundColor: theme.colors.card,
-            borderRadius: theme.radius.lg,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-            marginBottom: theme.spacing.sm,
-            flexDirection: "row",
-            alignItems: "center",
-            gap: theme.spacing.md,
-        },
         ratingRow: {
             marginTop: theme.spacing.xs,
         },
@@ -498,6 +536,31 @@ function createStyles(theme: AppTheme) {
         emptyStateText: {
             color: theme.colors.textMuted,
             fontSize: theme.typography.fontSize.sm,
+        },
+        ratingReviewSection: {
+            marginTop: theme.spacing.xs,
+            gap: theme.spacing.sm,
+        },
+
+        reviewBox: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+            gap: 3,
+        },
+
+        reviewLabel: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        reviewText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 19,
         },
     });
 }

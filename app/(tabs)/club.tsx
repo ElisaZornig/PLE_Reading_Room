@@ -207,14 +207,50 @@ export default function ClubScreen() {
         return t("club.memberStatusToRead");
     }
 
-    function getInitials(name: string) {
-        const parts = name.trim().split(/\s+/).filter(Boolean);
+    function formatLastUpdated(isoDate?: string | null) {
+        if (!isoDate) {
+            return t("club.lastUpdatedNever");
+        }
 
-        if (parts.length === 0) return "?";
-        if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+        const updatedDate = new Date(isoDate);
+        const today = new Date();
 
-        return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+        const updatedDay = new Date(
+            updatedDate.getFullYear(),
+            updatedDate.getMonth(),
+            updatedDate.getDate()
+        );
+
+        const todayDay = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            today.getDate()
+        );
+
+        const differenceInDays = Math.round(
+            (todayDay.getTime() - updatedDay.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        if (differenceInDays === 0) {
+            return t("club.lastUpdatedToday");
+        }
+
+        if (differenceInDays === 1) {
+            return t("club.lastUpdatedYesterday");
+        }
+
+        if (differenceInDays < 7) {
+            return t("club.lastUpdatedDaysAgo", { count: differenceInDays });
+        }
+
+        return t("club.lastUpdatedOn", {
+            date: new Intl.DateTimeFormat(undefined, {
+                day: "numeric",
+                month: "short",
+            }).format(updatedDate),
+        });
     }
+
 
     if (isLoading) {
         return (
@@ -278,6 +314,13 @@ export default function ClubScreen() {
         COMMENT_VISIBILITY_OPTIONS.find(
             (option) => option.value === club.commentVisibilityMode
         ) ?? COMMENT_VISIBILITY_OPTIONS[1];
+
+    function goToClubMeeting() {
+        router.push({
+            pathname: "/club-meeting",
+            params: { clubId: club?.id },
+        });
+    }
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
@@ -413,65 +456,71 @@ export default function ClubScreen() {
                     </Pressable>
                 </Pressable>
 
-                <View style={pageStyles.sectionCard}>
-                    <Text style={pageStyles.sectionLabel}>{t("club.nextMeeting")}</Text>
+                <Pressable
+                    style={[pageStyles.sectionCard, styles.meetingClickableCard]}
+                    onPress={() =>
+                        router.push({
+                            pathname: "/club-meeting",
+                            params: { clubId: club.id },
+                        })
+                    }
+                >
+                    <View style={styles.meetingCardContent}>
+                        <Text style={pageStyles.sectionLabel}>{t("club.nextMeeting")}</Text>
 
-                    {club.nextMeeting ? (
-                        <>
-                            <View style={styles.meetingRow}>
-                                <View style={styles.meetingIconWrap}>
-                                    <Feather name="calendar" size={18} color={theme.colors.accent} />
-                                </View>
+                        {club.nextMeeting ? (
+                            <>
+                                <View style={styles.meetingRow}>
+                                    <View style={styles.meetingIconWrap}>
+                                        <Feather
+                                            name="calendar"
+                                            size={18}
+                                            color={theme.colors.accent}
+                                        />
+                                    </View>
 
-                                <View style={styles.meetingInfo}>
-                                    <Text style={styles.meetingDate}>
-                                        {formatMeetingLabel(club.nextMeeting.meetingDate)}
-                                    </Text>
-
-                                    {!!club.nextMeeting.location && (
-                                        <Text style={styles.meetingLocation}>
-                                            {club.nextMeeting.location}
+                                    <View style={styles.meetingInfo}>
+                                        <Text style={styles.meetingDate}>
+                                            {formatMeetingLabel(club.nextMeeting.meetingDate)}
                                         </Text>
-                                    )}
-                                </View>
-                            </View>
 
-                            <Pressable
-                                style={pageStyles.secondaryButton}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: "/plan-meeting",
-                                        params: { clubId: club.id },
-                                    })
-                                }
-                            >
-                                <Text style={pageStyles.secondaryButtonText}>
-                                    {t("club.planMeeting")}
-                                </Text>
-                            </Pressable>
-                        </>
-                    ) : (
-                        <>
+                                        {!!club.nextMeeting.location && (
+                                            <Text style={styles.meetingLocation}>
+                                                {club.nextMeeting.location}
+                                            </Text>
+                                        )}
+                                    </View>
+                                </View>
+
+                                {!!club.nextMeeting.notes?.trim() && (
+                                    <View style={styles.meetingNoteBox}>
+                                        <Feather
+                                            name="file-text"
+                                            size={14}
+                                            color={theme.colors.accent}
+                                        />
+
+                                        <Text style={styles.meetingNoteText}>
+                                            {club.nextMeeting.notes.trim()}
+                                        </Text>
+                                    </View>
+                                )}
+                            </>
+                        ) : (
                             <Text style={pageStyles.emptyText}>
                                 {t("club.noMeetingPlanned")}
                             </Text>
+                        )}
+                    </View>
 
-                            <Pressable
-                                style={pageStyles.secondaryButton}
-                                onPress={() =>
-                                    router.push({
-                                        pathname: "/plan-meeting",
-                                        params: { clubId: club.id },
-                                    })
-                                }
-                            >
-                                <Text style={pageStyles.secondaryButtonText}>
-                                    {t("club.planMeeting")}
-                                </Text>
-                            </Pressable>
-                        </>
-                    )}
-                </View>
+                    <View style={styles.meetingChevron} pointerEvents="none">
+                        <Feather
+                            name="chevron-right"
+                            size={20}
+                            color={theme.colors.accent}
+                        />
+                    </View>
+                </Pressable>
 
                 <Pressable
                     style={styles.linkCard}
@@ -581,10 +630,8 @@ export default function ClubScreen() {
                                                     </View>
 
                                                     <Text style={styles.memberStatus}>
-                                                        {formatMemberStatus(
-                                                            member.status,
-                                                            member.progress
-                                                        )}
+                                                        {formatMemberStatus(member.status, member.progress)} ·{" "}
+                                                        {formatLastUpdated(member.lastUpdatedAt)}
                                                     </Text>
                                                 </View>
                                             </View>
@@ -764,6 +811,23 @@ function createStyles(theme: AppTheme) {
     const isDark = theme === darkTheme;
 
     return StyleSheet.create({
+        meetingClickableCard: {
+            position: "relative",
+            paddingRight: theme.spacing.xl + 18,
+        },
+
+        meetingCardContent: {
+            gap: theme.spacing.md,
+        },
+
+        meetingChevron: {
+            position: "absolute",
+            right: theme.spacing.md,
+            top: 0,
+            bottom: 0,
+            justifyContent: "center",
+            alignItems: "center",
+        },
         stateWrapper: {
             flex: 1,
             paddingHorizontal: theme.spacing.lg,
@@ -1222,6 +1286,24 @@ function createStyles(theme: AppTheme) {
 
         visibilityToggleTextSelected: {
             color: "#FFFFFF",
+        },
+        meetingNoteBox: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: theme.spacing.xs,
+            marginTop: theme.spacing.sm,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+        },
+
+        meetingNoteText: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
         },
 
     });

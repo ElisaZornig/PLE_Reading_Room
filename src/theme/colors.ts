@@ -47,5 +47,21 @@ export const colors = {
         dangerBorder: "#F3C7C7",
         tabInactive: "#8A9A89",
     },
+    yellow: {
+        background: "#FFF8E1",
+        surface: "#FFFDF2",
+        card: "#FFFFFF",
+        text: "#2B2516",
+        textMuted: "#7A6A45",
+        border: "#EADFA8",
+        accent: "#D6A300",
+        accentSoft: "#FFF0B8",
+        success: "#5FA56B",
+        successSoft: "#DDEEDF",
+        danger: "#B42318",
+        dangerSoft: "#FFF4F4",
+        dangerBorder: "#F3C7C7",
+        tabInactive: "#A39163",
+    },
 };
 

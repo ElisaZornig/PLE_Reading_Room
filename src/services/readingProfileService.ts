@@ -10,6 +10,7 @@ export type ReadingBook = {
     progress: number | null;
     rating: number | null;
     updatedAt: string | null;
+    review?: string | null;
 };
 
 export type FriendReadingSummary = {
@@ -31,6 +32,7 @@ type UserBookRow = {
     status: string;
     progress: number | null;
     rating: number | null;
+    review: string | null;
     updated_at: string | null;
     book: {
         id: string;
@@ -59,6 +61,7 @@ function normalizeBook(row: UserBookRow): ReadingBook | null {
         status: row.status,
         progress: row.progress,
         rating: row.rating,
+        review: row.review,
         updatedAt: row.updated_at,
     };
 }
@@ -74,6 +77,7 @@ export async function getFriendReadingSummary(
             status,
             progress,
             rating,
+            review,
             updated_at,
             book:books (
                 id,
@@ -141,6 +145,7 @@ export async function getFriendReadingProfile(
             progress,
             rating,
             updated_at,
+            review,
             book:books (
                 id,
                 title,

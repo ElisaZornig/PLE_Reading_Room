@@ -189,70 +189,86 @@ export default function BooksScreen() {
                                         })
                                     }
                                 >
-                                    <BookCover title={book.title} cover={book.cover} />
+                                    <View style={styles.bookCardTopRow}>
+                                        <BookCover title={book.title} cover={book.cover} />
 
-                                    <View style={styles.bookInfo}>
-                                        <Text style={pageStyles.title}>{book.title}</Text>
-                                        <Text style={styles.bookAuthor}>{book.author}</Text>
+                                        <View style={styles.bookInfo}>
+                                            <Text style={pageStyles.title}>{book.title}</Text>
+                                            <Text style={styles.bookAuthor}>{book.author}</Text>
 
-                                        <View style={styles.metaRow}>
-                                            <View
-                                                style={[
-                                                    styles.statusChip,
-                                                    { backgroundColor: statusColors.backgroundColor },
-                                                ]}
-                                            >
-                                                <Text
+                                            <View style={styles.metaRow}>
+                                                <View
                                                     style={[
-                                                        styles.statusChipText,
-                                                        { color: statusColors.textColor },
+                                                        styles.statusChip,
+                                                        { backgroundColor: statusColors.backgroundColor },
                                                     ]}
                                                 >
-                                                    {getBookStatusLabel(book.status)}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        {book.status === "reading" && typeof book.progress === "number" ? (
-                                            <View style={styles.progressSection}>
-                                                <Text style={styles.bookMeta}>
-                                                    {book.progressMode === "pages" &&
-                                                    typeof book.currentPage === "number" &&
-                                                    typeof book.totalPages === "number"
-                                                        ? `${book.progress}% • ${t("books.page")} ${book.currentPage} ${t("books.pageOf")} ${book.totalPages}`
-                                                        : `${book.progress}%`}
-                                                </Text>
-
-                                                <View style={styles.progressWrap}>
-                                                    <Progress.Bar
-                                                        progress={book.progress / 100}
-                                                        width={null}
-                                                        borderColor={theme.colors.card}
-                                                        unfilledColor={theme.colors.border}
-                                                        color={theme.colors.accent}
-                                                    />
+                                                    <Text
+                                                        style={[
+                                                            styles.statusChipText,
+                                                            { color: statusColors.textColor },
+                                                        ]}
+                                                    >
+                                                        {getBookStatusLabel(book.status)}
+                                                    </Text>
                                                 </View>
                                             </View>
-                                        ) : null}
 
-                                        {book.status === "finished" && book.rating && book.rating > 0 ? (
-                                            <StarRatingDisplay value={book.rating} />
-                                        ) : null}
+                                            {book.status === "reading" && typeof book.progress === "number" ? (
+                                                <View style={styles.progressSection}>
+                                                    <Text style={styles.bookMeta}>
+                                                        {book.progressMode === "pages" &&
+                                                        typeof book.currentPage === "number" &&
+                                                        typeof book.totalPages === "number"
+                                                            ? `${book.progress}% • ${t("books.page")} ${book.currentPage} ${t("books.pageOf")} ${book.totalPages}`
+                                                            : `${book.progress}%`}
+                                                    </Text>
+
+                                                    <View style={styles.progressWrap}>
+                                                        <Progress.Bar
+                                                            progress={book.progress / 100}
+                                                            width={null}
+                                                            borderColor={theme.colors.card}
+                                                            unfilledColor={theme.colors.border}
+                                                            color={theme.colors.accent}
+                                                        />
+                                                    </View>
+                                                </View>
+                                            ) : null}
+
+                                            {book.status === "finished" && book.rating && book.rating > 0 ? (
+                                                <StarRatingDisplay value={book.rating} />
+                                            ) : null}
+                                        </View>
+
+                                        <Pressable
+                                            style={styles.deleteButton}
+                                            onPress={(event) => {
+                                                event.stopPropagation();
+                                                void handleDeleteBook(book.id, book.title);
+                                            }}
+                                        >
+                                            <Feather
+                                                name="trash-2"
+                                                size={18}
+                                                color={theme.colors.textMuted}
+                                            />
+                                        </Pressable>
                                     </View>
 
-                                    <Pressable
-                                        style={styles.deleteButton}
-                                        onPress={(event) => {
-                                            event.stopPropagation();
-                                            void handleDeleteBook(book.id, book.title);
-                                        }}
-                                    >
-                                        <Feather
-                                            name="trash-2"
-                                            size={18}
-                                            color={theme.colors.textMuted}
-                                        />
-                                    </Pressable>
+                                    {book.review?.trim() ? (
+                                        <View style={styles.reviewNoteBox}>
+                                            <Feather
+                                                name="message-square"
+                                                size={14}
+                                                color={theme.colors.accent}
+                                            />
+
+                                            <Text style={styles.reviewNoteText} numberOfLines={3}>
+                                                {book.review.trim()}
+                                            </Text>
+                                        </View>
+                                    ) : null}
                                 </Pressable>
                             );
                         }}
@@ -265,6 +281,38 @@ export default function BooksScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        bookCard: {
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            gap: theme.spacing.md,
+        },
+
+        bookCardTopRow: {
+            flexDirection: "row",
+            gap: theme.spacing.md,
+            alignItems: "flex-start",
+        },
+
+        reviewNoteBox: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: theme.spacing.xs,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+        },
+
+        reviewNoteText: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
         fixedHeaderContent: {
             paddingHorizontal: theme.spacing.lg,
             paddingTop: theme.spacing.lg,
@@ -325,16 +373,6 @@ function createStyles(theme: AppTheme) {
             paddingBottom: 130,
             gap: theme.spacing.md,
         },
-        bookCard: {
-            flexDirection: "row",
-            gap: theme.spacing.md,
-            alignItems: "flex-start",
-            backgroundColor: theme.colors.card,
-            borderRadius: theme.radius.lg,
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            padding: theme.spacing.md,
-        },
         bookInfo: {
             flex: 1,
         },
@@ -384,6 +422,31 @@ function createStyles(theme: AppTheme) {
         loadingAnimation: {
             width: 200,
             height: 200,
+        },
+        ratingReviewSection: {
+            marginTop: theme.spacing.xs,
+            gap: theme.spacing.sm,
+        },
+
+        reviewBox: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+            gap: 3,
+        },
+
+        reviewLabel: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        reviewText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 19,
         },
     });
 }

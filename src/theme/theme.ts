@@ -35,4 +35,15 @@ export const greenTheme = {
     },
 };
 
+export const yellowTheme = {
+    colors: colors.yellow,
+    spacing,
+    radius,
+    typography: {
+        fontSize,
+        lineHeight,
+        fontWeight,
+    },
+};
+
 export type AppTheme = typeof lightTheme;

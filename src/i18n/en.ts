@@ -43,6 +43,7 @@ const en = {
         deleteError: "Failed to delete the book.",
         page: "Page",
         pageOf: "of",
+        review: "Review",
     },
     club: {
         members: "Members",
@@ -131,6 +132,14 @@ const en = {
 
         chooseNextKnowsBookTitle: "We already know the book",
         chooseNextKnowsBookSubtitle: "Search or add one book and set it as the next club book.",
+        lastUpdatedNever: "Not updated yet",
+        lastUpdatedToday: "Updated today",
+        lastUpdatedYesterday: "Updated yesterday",
+        lastUpdatedDaysAgo: "Updated %{count} days ago",
+        lastUpdatedOn: "Updated on %{date}",
+        manageMeeting: "Manage",
+        manageMeetingHint: "Edit the meeting or pick a new date together.",
+        planMeetingHint: "Plan a meeting directly or start a date picker.",
     },
     chooseBook: {
         title: "Choose a new book",
@@ -149,7 +158,8 @@ const en = {
         edit: "Edit",
         delete: "Delete",
         loading: "Loading...",
-        close: "Close"
+        close: "Close",
+        done: "Done"
     },
         bookStatus: {
             toRead: "Want to read",
@@ -505,6 +515,16 @@ const en = {
         removeConfirmText: "Do you want to remove this book from the shortlist?",
 
         bookFallback: "Book",
+        languageEnglish: "English",
+        languageDutch: "Dutch",
+
+        reasonTbrOne: "This book is already on 1 member's TBR.",
+        reasonTbrMultiple: "This book is already on %{count} members' TBRs.",
+        reasonOverlapTwo: "Recommended because your club overlaps on %{genreOne} and %{genreTwo}.",
+        reasonOneGenre: "Recommended because %{count}/%{total} members show interest in %{genre}.",
+        reasonProfile: "Recommended because it matches your club's reading profile.",
+        reasonLanguage: "It also fits your language preference: %{languages}.",
+        reasonNewerBooks: "It also fits the club's preference for newer books.",
     },
     createClub: {
         title: "Create club"
@@ -589,6 +609,7 @@ const en = {
         light: "Light",
         dark: "Dark",
         green: "Green",
+        yellow: "Yellow",
         save: "Save",
         saving: "Saving...",
         errorTitle: "Could not save preferences",
@@ -650,6 +671,7 @@ const en = {
         noReadBooks: "No read books visible yet.",
         unknownUser: "Unknown user",
         privateProfile: "You can only view this reading profile if you are friends.",
+        review: "Review",
     },
     chooseMethod: {
         screenTitle: "Choose method",
@@ -714,6 +736,96 @@ const en = {
         makeCurrentConfirmMessage: "This book will be set as the current club book and removed from the shortlist. The rest of the shortlist will stay saved.",
         makeCurrentConfirmButton: "Set book",
         makeCurrentConfirmCancel: "Cancel",
+    },
+    clubMeeting: {
+        title: "Plan meeting",
+        loading: "Loading meeting information...",
+        loadError: "Could not load the meeting information.",
+
+        currentMeetingTitle: "Official meeting",
+        editMeetingTitle: "Edit current meeting",
+        editMeetingText: "Change the date, time, location or note of the meeting that is currently confirmed.",
+
+        directMeetingTitle: "Confirm a meeting directly",
+        directMeetingText: "Choose a new date, time, location and note right away without voting.",
+
+        pollMeetingTitle: "Start a new date picker",
+        pollMeetingText: "Let everyone add dates, locations and votes before confirming the meeting.",
+
+        continuePollTitle: "Continue date picker",
+        continuePollText: "There is already an active vote for the next meeting.",
+        activePollBadge: "Active vote",
+
+        ownerConfirmText: "Everyone can add options and vote. The owner confirms the final meeting.",
+        defaultPollTitle: "New book club meeting",
+        pollStartErrorTitle: "Date picker not started",
+        pollStartErrorText: "Please try again.",
+    },
+    meetingPoll: {
+        title: "Pick a date together",
+        loading: "Loading date picker...",
+        noPoll: "No open date picker was found.",
+        loadErrorTitle: "Something went wrong",
+        loadErrorText: "Could not load the date picker.",
+
+        introTitle: "Plan the next meeting together",
+        introText: "Everyone can add dates and locations. Then the club votes and the owner confirms the final meeting.",
+
+        dateOptionsTitle: "Date options",
+        datePlaceholder: "YYYY-MM-DD",
+        timePlaceholder: "Time",
+        addDate: "Add date",
+        noDatesYet: "No date options have been added yet.",
+
+        locationOptionsTitle: "Location options",
+        locationPlaceholder: "For example: Emma's place",
+        addLocation: "Add location",
+        noLocationsYet: "No location options have been added yet.",
+
+        addDateErrorTitle: "Date not added",
+        addDateErrorText: "Check the date and try again.",
+        addLocationErrorTitle: "Location not added",
+        addLocationErrorText: "Check the location and try again.",
+
+        voteErrorTitle: "Vote not saved",
+        voteErrorText: "Please try again.",
+
+        can: "can",
+        maybe: "maybe",
+        cannot: "cannot",
+        available: "Can",
+        maybeAvailable: "Maybe",
+        unavailable: "Cannot",
+        bestOption: "Best option",
+        timeToBeDecided: "time TBD",
+
+        voteLocation: "Vote for this place",
+        votedLocation: "Voted",
+        locationVotes: "%{count} votes",
+
+        confirmTitle: "Confirm meeting",
+        confirmOwnerText: "Choose the best date and optionally a location. Only the owner can confirm the meeting for now.",
+        confirmMemberText: "You can add options and vote. The owner confirms the final meeting.",
+        confirmButton: "Make this the meeting",
+        confirming: "Saving meeting...",
+        confirmMissingTitle: "Choose a date first",
+        confirmMissingText: "Select a date option before confirming the meeting.",
+        confirmSuccessTitle: "Meeting planned",
+        confirmSuccessText: "The date picker has been turned into the official meeting.",
+        confirmErrorTitle: "Meeting not saved",
+        confirmErrorText: "Please try again.",
+        dateLabel: "Date",
+        chooseDate: "Choose a date",
+        timeOptional: "Add time (optional)",
+        timeOptionalHint: "Time is optional. You can also add only a date first.",
+        clearTime: "Clear time",
+        chooseDateFirst: "Choose a date first.",
+        unvoteLocation: "Remove vote",
+        selectedOptionsTitle: "Selected options",
+        noDateSelected: "No date selected yet",
+        noLocationSelected: "No location selected yet",
+        deleteDateErrorTitle: "Date not deleted",
+        deleteDateErrorText: "Please try again.",
     },
 
 

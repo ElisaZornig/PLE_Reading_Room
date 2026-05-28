@@ -469,14 +469,6 @@ export default function RecommendationsScreen() {
                                                 <Text style={styles.bookTitle}>{item.title}</Text>
                                                 <Text style={styles.bookAuthor}>{item.author}</Text>
 
-                                                {item.firstPublishYear ? (
-                                                    <Text style={styles.bookMeta}>
-                                                        {t("recommendations.firstPublished", {
-                                                            year: item.firstPublishYear,
-                                                        })}
-                                                    </Text>
-                                                ) : null}
-
                                                 <View style={styles.genreRow}>
                                                     {item.matchedGenres.map((genre) => (
                                                         <View key={genre} style={styles.genreChip}>
@@ -488,7 +480,20 @@ export default function RecommendationsScreen() {
                                                 </View>
                                             </View>
                                         </View>
+                                        {item.reason ? (
+                                            <View style={styles.reasonBox}>
+                                                <View style={styles.reasonHeader}>
+                                                    <Feather name="zap" size={13} color={theme.colors.accent} />
+                                                    <Text style={styles.reasonLabel}>
+                                                        {t("recommendations.whyThisFits")}
+                                                    </Text>
+                                                </View>
 
+                                                <Text style={styles.reasonText} numberOfLines={3}>
+                                                    {item.reason}
+                                                </Text>
+                                            </View>
+                                        ) : null}
                                         <Pressable
                                             style={[
                                                 styles.primaryButton,
@@ -989,6 +994,32 @@ function createStyles(theme: AppTheme) {
 
         secondaryButtonText: {
             color: theme.colors.accent,
+        },
+        reasonBox: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+            gap: 4,
+        },
+
+        reasonHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+        },
+
+        reasonLabel: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        reasonText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
         },
     });
 }
