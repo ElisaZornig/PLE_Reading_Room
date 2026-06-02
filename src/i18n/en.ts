@@ -28,6 +28,11 @@ const en = {
         createClub: "Create club",
         joinClub: "Join club",
         noBooksOnListYet: "No other books on your list yet",
+        monthlyStatsTitle: "%{month} reading",
+        monthlyFinished: "Gelezen",
+        monthlyReading: "Bezig",
+        monthlyTopGenre: "Top genre",
+        monthlyNoGenre: "—",
     },
     books: {
         title: "My books",

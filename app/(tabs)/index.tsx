@@ -32,6 +32,7 @@ import { Book } from "@/src/types/book";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
 import {prefetchClubRecommendations} from "@/src/services/clubRecommendations";
+import {getMonthlyReadingStats} from "@/src/utils/monthlyReadingStats";
 
 type PressableCardProps = {
     onPress: () => void;
@@ -103,6 +104,12 @@ export default function HomeScreen() {
     const listBooks = booksSortedByUpdated
         .filter((book) => book.id !== currentBook?.id)
         .slice(0, 4);
+
+    const monthlyStats = getMonthlyReadingStats(books);
+
+    const monthLabel = new Intl.DateTimeFormat(undefined, {
+        month: "long",
+    }).format(new Date());
 
     function formatMeetingLabel(isoDate: string) {
         const date = new Date(isoDate);
@@ -198,6 +205,44 @@ export default function HomeScreen() {
                     </View>
 
                     <ProfileButton />
+                </View>
+                <View style={styles.monthlyStatsSection}>
+                    <Text style={pageStyles.sectionLabel}>
+                        {t("home.monthlyStatsTitle", { month: monthLabel })}
+                    </Text>
+
+                    <View style={styles.monthlyStatsRow}>
+                        <View style={styles.monthlyStatCard}>
+                            <Text style={styles.monthlyStatValue}>
+                                {monthlyStats.finishedCount}
+                            </Text>
+                            <Text style={styles.monthlyStatLabel}>
+                                {t("home.monthlyFinished")}
+                            </Text>
+                        </View>
+
+                        <View style={styles.monthlyStatCard}>
+                            <Text style={styles.monthlyStatValue}>
+                                {monthlyStats.readingCount}
+                            </Text>
+                            <Text style={styles.monthlyStatLabel}>
+                                {t("home.monthlyReading")}
+                            </Text>
+                        </View>
+
+                        <View style={styles.monthlyStatCard}>
+                            <Text
+                                style={styles.monthlyStatGenreValue}
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                            >
+                                {monthlyStats.topGenre ?? t("home.monthlyNoGenre")}
+                            </Text>
+                            <Text style={styles.monthlyStatLabel}>
+                                {t("home.monthlyTopGenre")}
+                            </Text>
+                        </View>
+                    </View>
                 </View>
 
                 {currentBook ? (
@@ -342,6 +387,48 @@ export default function HomeScreen() {
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        monthlyStatsSection: {
+            marginBottom: theme.spacing.md,
+        },
+
+        monthlyStatsRow: {
+            flexDirection: "row",
+            gap: theme.spacing.sm,
+        },
+
+        monthlyStatCard: {
+            flex: 1,
+            minHeight: 72,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.card,
+            paddingVertical: theme.spacing.sm,
+            paddingHorizontal: theme.spacing.xs,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        monthlyStatValue: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.xl ?? 24,
+            fontWeight: theme.typography.fontWeight.bold,
+        },
+
+        monthlyStatGenreValue: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.bold,
+            maxWidth: "100%",
+            textAlign: "center",
+        },
+
+        monthlyStatLabel: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            marginTop: 2,
+            textAlign: "center",
+        },
         topRow: {
             flexDirection: "row",
             alignItems: "flex-start",

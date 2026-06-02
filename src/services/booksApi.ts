@@ -7,6 +7,7 @@ type OpenLibraryDoc = {
     author_name?: string[];
     cover_i?: number;
     first_publish_year?: number;
+    subject?: string[];
 };
 
 type OpenLibraryResponse = {
@@ -16,6 +17,22 @@ type OpenLibraryResponse = {
 const SEARCH_RESULT_LIMIT = 10;
 const FALLBACK_SEARCH_LIMIT = 8;
 const MIN_RESULTS_BEFORE_FALLBACK = 5;
+
+function getCleanGenres(subjects?: string[]) {
+    const blockedSubjects = new Set([
+        "fiction",
+        "juvenile fiction",
+        "accessible book",
+        "protected daisy",
+        "internet archive wishlist",
+    ]);
+
+    return [...new Set(subjects ?? [])]
+        .map((subject) => subject.trim())
+        .filter((subject) => subject.length > 0)
+        .filter((subject) => !blockedSubjects.has(subject.toLowerCase()))
+        .slice(0, 5);
+}
 
 function mapOpenLibraryDocToSearchResult(doc: OpenLibraryDoc): SearchBookResult | null {
     if (!doc.title) {
@@ -30,6 +47,7 @@ function mapOpenLibraryDocToSearchResult(doc: OpenLibraryDoc): SearchBookResult 
             ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg`
             : undefined,
         firstPublishYear: doc.first_publish_year,
+        genres: getCleanGenres(doc.subject),
     };
 }
 
@@ -52,7 +70,7 @@ async function fetchOpenLibraryBooks(
 ): Promise<SearchBookResult[]> {
     const params = new URLSearchParams({
         q: query,
-        fields: "key,title,author_name,cover_i,first_publish_year",
+        fields: "key,title,author_name,cover_i,first_publish_year,subject",
         limit: String(limit),
     });
 

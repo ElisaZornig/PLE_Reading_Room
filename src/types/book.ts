@@ -15,6 +15,8 @@ export type Book = {
     review?: string;
     dnfReason?: string;
     updatedAt?: string;
+    genres?: string[];
+
 };
 
 export type RecommendedBook = {
@@ -33,4 +35,5 @@ export type SearchBookResult = {
     firstPublishYear?: number;
     genres?: string[];
     description?: string;
+
 };

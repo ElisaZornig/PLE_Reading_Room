@@ -17,6 +17,7 @@ type UserBookRow = {
         title: string;
         author: string;
         cover_url: string | null;
+        genres: string[] | null;
     } | null;
 };
 
@@ -54,7 +55,8 @@ export async function fetchUserBooksFromSupabase(): Promise<Book[]> {
         id,
         title,
         author,
-        cover_url
+        cover_url,
+        genres
       )
     `
         )
@@ -83,6 +85,7 @@ export async function fetchUserBooksFromSupabase(): Promise<Book[]> {
             review: row.review ?? undefined,
             dnfReason: row.dnf_reason ?? undefined,
             updatedAt: row.updated_at ?? undefined,
+            genres: row.books!.genres ?? [],
         }));
 }
 
@@ -126,7 +129,8 @@ export async function fetchSingleUserBookFromSupabase(bookId: string): Promise<B
         id,
         title,
         author,
-        cover_url
+        cover_url,
+        genres
       )
     `
         )
@@ -163,6 +167,7 @@ export async function fetchSingleUserBookFromSupabase(bookId: string): Promise<B
         review: row.review ?? undefined,
         dnfReason: row.dnf_reason ?? undefined,
         updatedAt: row.updated_at ?? undefined,
+        genres: row.books!.genres ?? [],
     };
 }
 

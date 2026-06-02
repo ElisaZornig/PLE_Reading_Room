@@ -28,6 +28,11 @@ const nl = {
         createClub: "Club maken",
         joinClub: "Club joinen",
         noBooksOnListYet: "Nog geen andere boeken op je lijst",
+        monthlyStatsTitle: "%{month} reading",
+        monthlyFinished: "Finished",
+        monthlyReading: "Reading",
+        monthlyTopGenre: "Top genre",
+        monthlyNoGenre: "—",
     },
     books: {
         title: "Mijn boeken",
