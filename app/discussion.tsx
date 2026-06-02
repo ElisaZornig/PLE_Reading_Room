@@ -16,7 +16,6 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppHeader } from "@/src/components/AppHeader";
 import {
     clearDiscussionRepliesForQuestionInSupabase,
     createDiscussionQuestionInSupabase,
@@ -35,7 +34,6 @@ import {
 } from "@/src/services/supabaseClub";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
-import { useFocusEffect } from "@react-navigation/native";
 import { getCurrentSupabaseUserId } from "@/src/services/supabaseUserBooks";
 import LottieView from 'lottie-react-native';
 import {subscribeToRefresh, triggerRefresh} from "@/src/utils/refreshEvents";
@@ -43,8 +41,12 @@ import {createPageStyles} from "@/src/styles/pageStyles";
 import {t} from "@/src/i18n";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {showAppAlert, showAppConfirm} from "@/src/utils/appAlert";
+import {DISCUSSION_QUESTION_PRESETS, DiscussionQuestionPresetPackId} from "@/src/data/discussionQuestionPreset";
+import {getPresetQuestionsToAdd} from "@/src/utils/discussionPresetQuestions";
 
 type QuestionSortOrder = "oldestFirst" | "newestFirst";
+type QuestionModalMode = "custom" | "presets";
+
 
 
 export default function DiscussionScreen() {
@@ -85,6 +87,14 @@ export default function DiscussionScreen() {
         useState<QuestionSortOrder>("oldestFirst");
     const [commentVisibilityMode, setCommentVisibilityMode] =
         useState<CommentVisibilityMode>("sameProgress");
+    const [questionModalMode, setQuestionModalMode] =
+        useState<QuestionModalMode>("custom");
+
+    const [selectedPresetPackId, setSelectedPresetPackId] =
+        useState<DiscussionQuestionPresetPackId>("starter");
+
+    const [selectedPresetQuestionIds, setSelectedPresetQuestionIds] =
+        useState<Record<string, boolean>>({});
 
     const [nextMeetingDate, setNextMeetingDate] = useState<string | null>(null);
 
@@ -235,6 +245,95 @@ export default function DiscussionScreen() {
                     ? error.message
                     : "Something went wrong while adding the question.";
             Alert.alert("Add question error", message);
+        } finally {
+            setIsSavingQuestion(false);
+        }
+    }
+
+    function resetQuestionModal() {
+        setIsQuestionModalVisible(false);
+        setNewQuestion("");
+        setQuestionModalMode("custom");
+        setSelectedPresetPackId("starter");
+        setSelectedPresetQuestionIds({});
+    }
+
+    function openQuestionModal(mode: QuestionModalMode = "custom") {
+        setQuestionModalMode(mode);
+
+        if (mode === "presets") {
+            const starterPack = DISCUSSION_QUESTION_PRESETS.find(
+                (presetPack) => presetPack.id === "starter"
+            );
+
+            setSelectedPresetPackId("starter");
+            setSelectedPresetQuestionIds(
+                Object.fromEntries(
+                    starterPack?.questions.map((question) => [question.id, true]) ?? []
+                )
+            );
+        } else {
+            setSelectedPresetQuestionIds({});
+        }
+
+        setIsQuestionModalVisible(true);
+    }
+
+    function togglePresetQuestion(questionId: string) {
+        setSelectedPresetQuestionIds((current) => ({
+            ...current,
+            [questionId]: !current[questionId],
+        }));
+    }
+
+    async function handleAddPresetQuestions() {
+        const selectedQuestionTexts = selectedPresetQuestions.map((question) =>
+            t(question.textKey)
+        );
+
+        const questionsToAdd = getPresetQuestionsToAdd({
+            selectedQuestions: selectedQuestionTexts,
+            existingQuestions: questions.map((question) => question.question),
+        });
+
+        if (selectedQuestionTexts.length === 0) {
+            showAppAlert(
+                t("discussion.noPresetSelectedTitle"),
+                t("discussion.noPresetSelectedMessage")
+            );
+            return;
+        }
+
+        if (questionsToAdd.length === 0) {
+            showAppAlert(
+                t("discussion.noNewPresetQuestionsTitle"),
+                t("discussion.noNewPresetQuestionsMessage")
+            );
+            return;
+        }
+
+        try {
+            setIsSavingQuestion(true);
+
+            await Promise.all(
+                questionsToAdd.map((question) =>
+                    createDiscussionQuestionInSupabase({
+                        clubId: clubId ?? "",
+                        question,
+                    })
+                )
+            );
+
+            resetQuestionModal();
+            await loadDiscussion();
+            triggerRefresh("club");
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : t("discussion.addPresetQuestionsErrorMessage");
+
+            showAppAlert(t("discussion.addPresetQuestionsErrorTitle"), message);
         } finally {
             setIsSavingQuestion(false);
         }
@@ -529,6 +628,18 @@ export default function DiscussionScreen() {
         });
     }, [questions, questionSortOrder]);
 
+    const selectedPresetPack = useMemo(() => {
+        return (
+            DISCUSSION_QUESTION_PRESETS.find(
+                (presetPack) => presetPack.id === selectedPresetPackId
+            ) ?? DISCUSSION_QUESTION_PRESETS[0]
+        );
+    }, [selectedPresetPackId]);
+
+    const selectedPresetQuestions = selectedPresetPack.questions.filter(
+        (question) => selectedPresetQuestionIds[question.id]
+    );
+
     const questionModalContent = (
         <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
@@ -536,23 +647,125 @@ export default function DiscussionScreen() {
                     {t("discussion.newQuestionTitle")}
                 </Text>
 
-                <TextInput
-                    value={newQuestion}
-                    onChangeText={setNewQuestion}
-                    placeholder={t("discussion.newQuestionPlaceholder")}
-                    placeholderTextColor={theme.colors.textMuted}
-                    style={[styles.input, styles.textArea]}
-                    multiline
-                    textAlignVertical="top"
-                />
+                <View style={styles.questionModeRow}>
+                    <Pressable
+                        style={[
+                            styles.questionModeButton,
+                            questionModalMode === "custom" && styles.questionModeButtonActive,
+                        ]}
+                        onPress={() => setQuestionModalMode("custom")}
+                    >
+                        <Text
+                            style={[
+                                styles.questionModeButtonText,
+                                questionModalMode === "custom" &&
+                                styles.questionModeButtonTextActive,
+                            ]}
+                        >
+                            {t("discussion.writeYourself")}
+                        </Text>
+                    </Pressable>
+
+                    <Pressable
+                        style={[
+                            styles.questionModeButton,
+                            questionModalMode === "presets" && styles.questionModeButtonActive,
+                        ]}
+                        onPress={() => setQuestionModalMode("presets")}
+                    >
+                        <Text
+                            style={[
+                                styles.questionModeButtonText,
+                                questionModalMode === "presets" &&
+                                styles.questionModeButtonTextActive,
+                            ]}
+                        >
+                            {t("discussion.usePresets")}
+                        </Text>
+                    </Pressable>
+                </View>
+
+                {questionModalMode === "custom" ? (
+                    <TextInput
+                        value={newQuestion}
+                        onChangeText={setNewQuestion}
+                        placeholder={t("discussion.newQuestionPlaceholder")}
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={[styles.input, styles.textArea]}
+                        multiline
+                        textAlignVertical="top"
+                    />
+                ) : (
+                    <View style={styles.presetsWrap}>
+                        <View style={styles.presetPackRow}>
+                            {DISCUSSION_QUESTION_PRESETS.map((presetPack) => {
+                                const isSelected = presetPack.id === selectedPresetPackId;
+
+                                return (
+                                    <Pressable
+                                        key={presetPack.id}
+                                        style={[
+                                            styles.presetPackButton,
+                                            isSelected && styles.presetPackButtonActive,
+                                        ]}
+                                        onPress={() => setSelectedPresetPackId(presetPack.id)}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.presetPackButtonText,
+                                                isSelected && styles.presetPackButtonTextActive,
+                                            ]}
+                                        >
+                                            {t(presetPack.titleKey)}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+
+                        <Text style={styles.presetDescription}>
+                            {t(selectedPresetPack.descriptionKey)}
+                        </Text>
+
+                        <View style={styles.presetQuestionsList}>
+                            {selectedPresetPack.questions.map((question) => {
+                                const isSelected = Boolean(
+                                    selectedPresetQuestionIds[question.id]
+                                );
+
+                                return (
+                                    <Pressable
+                                        key={question.id}
+                                        style={[
+                                            styles.presetQuestionButton,
+                                            isSelected && styles.presetQuestionButtonSelected,
+                                        ]}
+                                        onPress={() => togglePresetQuestion(question.id)}
+                                    >
+                                        <Feather
+                                            name={isSelected ? "check-circle" : "circle"}
+                                            size={18}
+                                            color={
+                                                isSelected
+                                                    ? theme.colors.accent
+                                                    : theme.colors.textMuted
+                                            }
+                                        />
+
+                                        <Text style={styles.presetQuestionText}>
+                                            {t(question.textKey)}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
 
                 <View style={styles.modalActions}>
                     <Pressable
                         style={styles.modalSecondaryButton}
-                        onPress={() => {
-                            setIsQuestionModalVisible(false);
-                            setNewQuestion("");
-                        }}
+                        onPress={resetQuestionModal}
                     >
                         <Text style={styles.modalSecondaryButtonText}>
                             {t("common.cancel")}
@@ -564,13 +777,21 @@ export default function DiscussionScreen() {
                             styles.primaryButton,
                             isSavingQuestion && styles.primaryButtonDisabled,
                         ]}
-                        onPress={handleAddQuestion}
+                        onPress={
+                            questionModalMode === "custom"
+                                ? handleAddQuestion
+                                : handleAddPresetQuestions
+                        }
                         disabled={isSavingQuestion}
                     >
                         <Text style={styles.primaryButtonText}>
                             {isSavingQuestion
                                 ? t("discussion.addingQuestion")
-                                : t("discussion.addQuestion")}
+                                : questionModalMode === "custom"
+                                    ? t("discussion.addQuestion")
+                                    : t("discussion.addSelectedQuestions", {
+                                        count: selectedPresetQuestions.length,
+                                    })}
                         </Text>
                     </Pressable>
                 </View>
@@ -639,10 +860,30 @@ export default function DiscussionScreen() {
                 </View>
             ) : questions.length === 0 ? (
                 <View style={styles.emptyCard}>
-                    <Text style={styles.emptyTitle}>No questions yet</Text>
+                    <Text style={styles.emptyTitle}>{t("discussion.noQuestionsTitle")}</Text>
                     <Text style={styles.emptyText}>
-                        Add your first discussion question to get the conversation started.
+                        {t("discussion.noQuestionsText")}
                     </Text>
+
+                    <View style={styles.emptyActionsRow}>
+                        <Pressable
+                            style={styles.primaryButton}
+                            onPress={() => openQuestionModal("presets")}
+                        >
+                            <Text style={styles.primaryButtonText}>
+                                {t("discussion.useStarterQuestions")}
+                            </Text>
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.modalSecondaryButton}
+                            onPress={() => openQuestionModal("custom")}
+                        >
+                            <Text style={styles.modalSecondaryButtonText}>
+                                {t("discussion.writeYourself")}
+                            </Text>
+                        </Pressable>
+                    </View>
                 </View>
             ) : (
                 <>
@@ -947,7 +1188,7 @@ export default function DiscussionScreen() {
             </Modal>
             <Pressable
                 style={styles.fabButton}
-                onPress={() => setIsQuestionModalVisible(true)}
+                onPress={() => openQuestionModal("custom")}
             >
                 <Feather name="plus" size={22} color="#FFFFFF" />
             </Pressable>
@@ -998,6 +1239,111 @@ function createStyles(theme: AppTheme) {
         safeArea: {
             flex: 1,
             backgroundColor: theme.colors.background,
+        },
+        questionModeRow: {
+            flexDirection: "row",
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: 4,
+            gap: 4,
+        },
+
+        questionModeButton: {
+            flex: 1,
+            borderRadius: theme.radius.pill,
+            paddingVertical: 9,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        questionModeButtonActive: {
+            backgroundColor: theme.colors.card,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+        },
+
+        questionModeButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+
+        questionModeButtonTextActive: {
+            color: theme.colors.accent,
+        },
+
+        presetsWrap: {
+            gap: theme.spacing.sm,
+        },
+
+        presetPackRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: theme.spacing.xs,
+        },
+
+        presetPackButton: {
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+        },
+
+        presetPackButtonActive: {
+            backgroundColor: theme.colors.accentSoft,
+            borderColor: theme.colors.accent,
+        },
+
+        presetPackButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+        },
+
+        presetPackButtonTextActive: {
+            color: theme.colors.accent,
+        },
+
+        presetDescription: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            lineHeight: 18,
+        },
+
+        presetQuestionsList: {
+            gap: theme.spacing.xs,
+        },
+
+        presetQuestionButton: {
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: theme.spacing.sm,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surface,
+            padding: theme.spacing.sm,
+        },
+
+        presetQuestionButtonSelected: {
+            backgroundColor: theme.colors.accentSoft,
+            borderColor: theme.colors.accent,
+        },
+
+        presetQuestionText: {
+            flex: 1,
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+
+        emptyActionsRow: {
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
         },
         hiddenReplyCard: {
             flexDirection: "row",
