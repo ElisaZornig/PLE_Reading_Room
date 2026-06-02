@@ -201,15 +201,14 @@ export default function HomeScreen() {
                                 name: displayName || t("home.fallbackName"),
                             })}
                         </Text>
-                        <Text style={pageStyles.pageSubtitle}>{t("home.subtitle")}</Text>
+                        <Text style={pageStyles.pageSubtitle}>
+                            {t("home.subtitle", { month: monthLabel })}
+                        </Text>
                     </View>
 
                     <ProfileButton />
                 </View>
                 <View style={styles.monthlyStatsSection}>
-                    <Text style={pageStyles.sectionLabel}>
-                        {t("home.monthlyStatsTitle", { month: monthLabel })}
-                    </Text>
 
                     <View style={styles.monthlyStatsRow}>
                         <View style={styles.monthlyStatCard}>
