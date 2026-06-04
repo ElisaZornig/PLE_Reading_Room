@@ -238,23 +238,28 @@ export async function fetchStoredBookMapFromSupabase(): Promise<Record<string, s
 export async function fetchCurrentUserDisplayName() {
     const {
         data: { user },
-        error,
+        error: userError,
     } = await supabase.auth.getUser();
 
-    if (error || !user) {
-        throw new Error("Geen ingelogde gebruiker gevonden.");
+    if (userError || !user) {
+        return "";
     }
 
-    const metadataName =
-        typeof user.user_metadata?.display_name === "string"
-            ? user.user_metadata.display_name.trim()
-            : "";
+    const { data, error } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
 
-    if (metadataName) {
-        return metadataName;
+    if (!error && data?.display_name?.trim()) {
+        return data.display_name.trim();
     }
 
-    const emailName = user.email?.split("@")[0]?.trim();
+    const metadataName = user.user_metadata?.display_name;
 
-    return emailName || "";
+    if (typeof metadataName === "string" && metadataName.trim()) {
+        return metadataName.trim();
+    }
+
+    return user.email?.split("@")[0] ?? "";
 }

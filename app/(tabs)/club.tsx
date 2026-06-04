@@ -24,6 +24,7 @@ import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
 import {AvatarBubble} from "@/src/components/AvatarBubble";
 import {COMMENT_VISIBILITY_OPTIONS} from "@/src/constants/visibilityOptions";
+import {BrandLoader} from "@/src/components/BrandLoader";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -253,19 +254,7 @@ export default function ClubScreen() {
 
 
     if (isLoading) {
-        return (
-            <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>
-                <View style={styles.stateWrapper}>
-                    <LottieView
-                        source={require("@/assets/animations/loading-book.json")}
-                        autoPlay
-                        loop
-                        style={styles.loadingAnimation}
-                    />
-                    <Text style={pageStyles.emptyText}>{t("club.loading")}</Text>
-                </View>
-            </SafeAreaView>
-        );
+        return <BrandLoader text={t("club.loading")} />
     }
 
     if (!club) {

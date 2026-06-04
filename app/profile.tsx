@@ -29,7 +29,7 @@ type Profile = {
     avatar_background_color: string | null;
     favorite_genres: string[] | null;
     preferred_languages: string[] | null;
-    app_theme: ThemePreference | null;
+    app_theme: ThemePreference | "light" | "dark" | null;
 };
 
 export default function ProfileScreen() {
@@ -41,6 +41,17 @@ export default function ProfileScreen() {
     const [clubCount, setClubCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const { setThemePreference } = useAppThemeContext();
+    function getAppearanceLabel(appTheme: Profile["app_theme"]) {
+        if (appTheme === "green") {
+            return t("profile.green");
+        }
+
+        if (appTheme === "yellow") {
+            return t("profile.yellow");
+        }
+
+        return t("profile.system");
+    }
 
     async function fetchProfile() {
         setLoading(true);
@@ -180,13 +191,7 @@ export default function ProfileScreen() {
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>{t("profile.appearance")}</Text>
                         <Text style={styles.infoValue}>
-                            {profile?.app_theme === "light"
-                                ? t("profile.light")
-                                : profile?.app_theme === "dark"
-                                    ? t("profile.dark")
-                                    : profile?.app_theme === "green"
-                                        ? t("profile.green")
-                                        : t("profile.system")}
+                            {getAppearanceLabel(profile?.app_theme ?? "system")}
                         </Text>
                     </View>
                 </Pressable>

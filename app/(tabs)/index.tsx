@@ -33,6 +33,7 @@ import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
 import {prefetchClubRecommendations} from "@/src/services/clubRecommendations";
 import {getMonthlyReadingStats} from "@/src/utils/monthlyReadingStats";
+import { BrandLoader } from "@/src/components/BrandLoader";
 
 type PressableCardProps = {
     onPress: () => void;
@@ -88,6 +89,7 @@ export default function HomeScreen() {
     const [books, setBooks] = useState<Book[]>([]);
     const [club, setClub] = useState<ClubOverview | null>(null);
     const [displayName, setDisplayName] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
 
     const theme = useAppTheme();
     const pageStyles = createPageStyles(theme);
@@ -161,15 +163,19 @@ export default function HomeScreen() {
 
             setBooks(supabaseBooks);
             setClub(clubData);
+
             if (clubData?.id) {
                 void prefetchClubRecommendations(clubData.id);
             }
+
             setDisplayName(currentUserName);
         } catch (error) {
             console.error("Error loading home data:", error);
             setBooks([]);
             setClub(null);
             setDisplayName("");
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
@@ -182,6 +188,10 @@ export default function HomeScreen() {
 
         return unsubscribe;
     }, [loadHomeData]);
+
+    if (isLoading) {
+        return <BrandLoader text={t("home.loading")} />;
+    }
 
     return (
         <SafeAreaView style={pageStyles.safeArea} edges={["top"]}>

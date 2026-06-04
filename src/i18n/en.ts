@@ -33,6 +33,7 @@ const en = {
         monthlyReading: "Reading",
         monthlyTopGenre: "Top genre",
         monthlyNoGenre: "—",
+        loading: "Loading your reading room...",
     },
     books: {
         title: "My books",
@@ -49,6 +50,7 @@ const en = {
         page: "Page",
         pageOf: "of",
         review: "Review",
+        loading: "Loading your books...",
     },
     club: {
         members: "Members",
@@ -246,6 +248,7 @@ const en = {
         saveErrorTitle: "Saving failed",
         saveErrorMessage: "The book details could not be saved.",
         saving: "Saving...",
+        totalPagesPlaceholder: "Total pages",
     },
     deleteBook: {
         title: "Boek verwijderen",
@@ -629,7 +632,7 @@ const en = {
 
         appPreferences: "App preferences",
         appearance: "Appearance",
-        system: "System",
+        system: "Standard",
         light: "Light",
         dark: "Dark",
         green: "Green",
@@ -648,7 +651,7 @@ const en = {
         favoriteGenres: "Favourite genres",
         preferredLanguages: "Reading languages",
         appearance: "Appearance",
-        system: "System",
+        system: "Standard",
         light: "Light",
         dark: "Dark",
         green: "Green",
@@ -657,6 +660,7 @@ const en = {
         saving: "Saving...",
         errorTitle: "Could not save preferences",
         errorMessage: "Something went wrong while saving your preferences.",
+        appearanceHint: "The app follows your phone’s light or dark mode automatically.",
     },
 
     profileAccount: {
@@ -703,6 +707,12 @@ const en = {
         booksOnTbr: "{{count}} books on TBR",
     },
     friendProfile: {
+        tapToExpand: "Tap to expand",
+        tapToCollapse: "Tap to collapse",
+        tapForDetails: "Tap for details",
+        bookDetails: "Book details",
+        addToMyTbr: "Add to my TBR",
+        adding: "Adding...",
         title: "Reading profile",
         sharedReadingInfo: "View shared reading information",
         loading: "Loading reading profile...",
@@ -715,6 +725,18 @@ const en = {
         unknownUser: "Unknown user",
         privateProfile: "You can only view this reading profile if you are friends.",
         review: "Review",
+        addedTitle: "Added to your TBR",
+        addedMessage: "This book has been added to your list.",
+        alreadyAddedTitle: "Already in your list",
+        alreadyAddedMessage: "You already have this book in your library.",
+        addErrorTitle: "Could not add book",
+        addErrorMessage: "Something went wrong while adding this book.",
+        tapToShowReadBooks: "Tap to show finished books.",
+        tapToShowTbr: "Tap to show this friend’s TBR.",
+        showAllReadBooks: "Show {{count}} more",
+        showAllTbr: "Show {{count}} more",
+        showLess: "Show less",
+        progress: "Progress",
     },
     chooseMethod: {
         screenTitle: "Choose method",

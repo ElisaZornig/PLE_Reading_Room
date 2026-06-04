@@ -33,6 +33,7 @@ const nl = {
         monthlyReading: "Bezig",
         monthlyTopGenre: "Top genre",
         monthlyNoGenre: "—",
+        loading: "Je leesruimte wordt geladen...",
     },
     books: {
         title: "Mijn boeken",
@@ -49,6 +50,7 @@ const nl = {
         page: "Pagina",
         pageOf: "van",
         review: "Review",
+        loading: "Je boeken worden geladen...",
     },
     club: {
         members: "Leden",
@@ -244,6 +246,7 @@ const nl = {
         saveErrorTitle: "Opslaan mislukt",
         saveErrorMessage: "De boekdetails konden niet worden opgeslagen.",
         saving: "Opslaan...",
+        totalPagesPlaceholder: "Totaal aantal pagina's",
     },
     deleteBook: {
         title: "Boek verwijderen",
@@ -625,7 +628,7 @@ const nl = {
 
         appPreferences: "App voorkeuren",
         appearance: "Weergave",
-        system: "Systeem",
+        system: "Standaard",
         light: "Licht",
         dark: "Donker",
         green: "Groen",
@@ -635,7 +638,7 @@ const nl = {
         logout: "Uitloggen",
         passwordHidden: "••••••••",
         name: "Naam",
-        Password: "Wachtwoord"
+        Password: "Wachtwoord",
     },
 
     profilePreferences: {
@@ -644,7 +647,7 @@ const nl = {
         favoriteGenres: "Favoriete genres",
         preferredLanguages: "Leestalen",
         appearance: "Weergave",
-        system: "Systeem",
+        system: "Standaard",
         light: "Licht",
         dark: "Donker",
         green: "Groen",
@@ -653,6 +656,8 @@ const nl = {
         saving: "Opslaan...",
         errorTitle: "Voorkeuren opslaan mislukt",
         errorMessage: "Er ging iets mis bij het opslaan van je voorkeuren.",
+        appearanceHint: "De app past automatisch mee met licht of donker op je telefoon.",
+
     },
 
     profileAccount: {
@@ -699,6 +704,12 @@ const nl = {
         booksOnTbr: "{{count}} boeken op TBR",
     },
     friendProfile: {
+        tapToExpand: "Tik om uit te klappen",
+        tapToCollapse: "Tik om in te klappen",
+        tapForDetails: "Tik voor details",
+        bookDetails: "Boekdetails",
+        addToMyTbr: "Toevoegen aan mijn TBR",
+        adding: "Toevoegen...",
         title: "Leesprofiel",
         sharedReadingInfo: "Bekijk gedeelde leesinformatie",
         loading: "Leesprofiel laden...",
@@ -710,7 +721,19 @@ const nl = {
         noReadBooks: "Nog geen gelezen boeken zichtbaar.",
         unknownUser: "Onbekende gebruiker",
         privateProfile: "Je kunt dit leesprofiel alleen bekijken als jullie vrienden zijn.",
+        addedTitle: "Toegevoegd aan je TBR",
+        addedMessage: "Dit boek staat nu in je lijst.",
+        alreadyAddedTitle: "Staat al in je lijst",
+        alreadyAddedMessage: "Je hebt dit boek al in je bibliotheek staan.",
+        addErrorTitle: "Boek niet toegevoegd",
+        addErrorMessage: "Er ging iets mis tijdens het toevoegen.",
+        tapToShowReadBooks: "Tik om gelezen boeken te bekijken.",
+        tapToShowTbr: "Tik om de TBR van deze vriend te bekijken.",
+        showAllReadBooks: "Toon nog {{count}}",
+        showAllTbr: "Toon nog {{count}}",
+        showLess: "Toon minder",
         review: "Review",
+        progress: "Voortgang",
     },
     chooseMethod: {
         screenTitle: "Kiesmethode",

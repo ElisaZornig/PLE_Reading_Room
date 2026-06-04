@@ -2,6 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+    KeyboardAvoidingView,
+    Modal, Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -26,6 +28,12 @@ import { useAppTheme } from "@/src/theme/useAppTheme";
 import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 import {t} from "@/src/i18n";
 import {supabase} from "@/src/services/supabase";
+import { addBookToUserLibrary } from "@/src/services/supabaseBooks";
+import { showAppAlert } from "@/src/utils/appAlert";
+import { triggerRefresh } from "@/src/utils/refreshEvents";
+
+const COLLAPSED_PREVIEW_COUNT = 4;
+
 
 export default function FriendProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,6 +47,12 @@ export default function FriendProfileScreen() {
         useState<FriendReadingProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [canViewProfile, setCanViewProfile] = useState(false);
+    const [isReadBooksExpanded, setIsReadBooksExpanded] = useState(false);
+
+    const [isTbrExpanded, setIsTbrExpanded] = useState(false);
+    const [selectedBook, setSelectedBook] = useState<ReadingBook | null>(null);
+    const [isAddingBook, setIsAddingBook] = useState(false);
+
 
     async function fetchFriendProfile() {
         if (!id) return;
@@ -75,6 +89,66 @@ export default function FriendProfileScreen() {
             console.log("Error fetching friend profile:", error);
         } finally {
             setLoading(false);
+        }
+    }
+    async function handleAddFriendBookToTbr(book: ReadingBook) {
+        try {
+            setIsAddingBook(true);
+
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+
+            if (!user) {
+                router.replace("/auth");
+                return;
+            }
+
+            if (!book.id) {
+                showAppAlert(
+                    t("friendProfile.addErrorTitle"),
+                    t("friendProfile.addErrorMessage")
+                );
+                return;
+            }
+
+            const { data: existingBook } = await supabase
+                .from("user_books")
+                .select("id")
+                .eq("user_id", user.id)
+                .eq("book_id", book.id)
+                .maybeSingle();
+
+            if (existingBook) {
+                showAppAlert(
+                    t("friendProfile.alreadyAddedTitle"),
+                    t("friendProfile.alreadyAddedMessage")
+                );
+                return;
+            }
+
+            await addBookToUserLibrary(book.id, user.id, {
+                status: "toRead",
+                progress: 0,
+                progressMode: "percentage",
+            });
+
+            triggerRefresh("books", "home");
+
+            showAppAlert(
+                t("friendProfile.addedTitle"),
+                t("friendProfile.addedMessage")
+            );
+
+            setSelectedBook(null);
+        } catch (error) {
+            console.log("Error adding friend book:", error);
+            showAppAlert(
+                t("friendProfile.addErrorTitle"),
+                t("friendProfile.addErrorMessage")
+            );
+        } finally {
+            setIsAddingBook(false);
         }
     }
 
@@ -173,6 +247,7 @@ export default function FriendProfileScreen() {
                                         key={book.userBookId}
                                         book={book}
                                         showProgress
+                                        onPress={() => setSelectedBook(book)}
                                     />
                                 ))
                             ) : (
@@ -189,64 +264,134 @@ export default function FriendProfileScreen() {
                             )}
                         </View>
 
-                        <View>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>
-                                    {t("friendProfile.wantToRead")}
-                                </Text>
-                                <Text style={styles.sectionCount}>{tbr.length}</Text>
-                            </View>
+                        <CollapsibleBookSection
+                            title={t("friendProfile.readBooks")}
+                            books={readBooks}
+                            isExpanded={isReadBooksExpanded}
+                            onToggleExpanded={() => setIsReadBooksExpanded((current) => !current)}
+                            emptyText={t("friendProfile.noReadBooks")}
+                            emptyIcon="book-open"
+                            showRating
+                            onBookPress={setSelectedBook}
+                        />
 
-                            {tbr.length > 0 ? (
-                                tbr.map((book) => (
-                                    <BookListCard key={book.userBookId} book={book} />
-                                ))
-                            ) : (
-                                <View style={styles.emptyStateCard}>
-                                    <Feather
-                                        name="bookmark"
-                                        size={18}
-                                        color={theme.colors.textMuted}
-                                    />
-                                    <Text style={styles.emptyStateText}>
-                                        {t("friendProfile.noTbr")}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-
-                        <View>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>
-                                    {t("friendProfile.readBooks")}
-                                </Text>
-                                <Text style={styles.sectionCount}>{readBooks.length}</Text>
-                            </View>
-
-                            {readBooks.length > 0 ? (
-                                readBooks.map((book) => (
-                                    <BookListCard
-                                        key={book.userBookId}
-                                        book={book}
-                                        showRating
-                                    />
-                                ))
-                            ) : (
-                                <View style={styles.emptyStateCard}>
-                                    <Feather
-                                        name="book-open"
-                                        size={18}
-                                        color={theme.colors.textMuted}
-                                    />
-                                    <Text style={styles.emptyStateText}>
-                                        {t("friendProfile.noReadBooks")}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                        <CollapsibleBookSection
+                            title={t("friendProfile.wantToRead")}
+                            books={tbr}
+                            isExpanded={isTbrExpanded}
+                            onToggleExpanded={() => setIsTbrExpanded((current) => !current)}
+                            emptyText={t("friendProfile.noTbr")}
+                            emptyIcon="bookmark"
+                            onBookPress={setSelectedBook}
+                        />
                     </>
                 )}
             </ScrollView>
+            <Modal
+                visible={Boolean(selectedBook)}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSelectedBook(null)}
+            >
+                <KeyboardAvoidingView
+                    style={styles.modalKeyboardView}
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                >
+                    <View style={styles.modalOverlay}>
+                        <ScrollView
+                            contentContainerStyle={styles.modalScrollContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <View style={styles.modalCard}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>
+                                        {t("friendProfile.bookDetails")}
+                                    </Text>
+
+                                    <Pressable
+                                        onPress={() => setSelectedBook(null)}
+                                        style={styles.modalCloseButton}
+                                    >
+                                        <Feather
+                                            name="x"
+                                            size={20}
+                                            color={theme.colors.textMuted}
+                                        />
+                                    </Pressable>
+                                </View>
+
+                                {selectedBook ? (
+                                    <>
+                                        <View style={styles.selectedBookPreview}>
+                                            <BookCover
+                                                title={selectedBook.title}
+                                                cover={selectedBook.coverUrl ?? undefined}
+                                                small
+                                            />
+
+                                            <View style={styles.bookTextContent}>
+                                                <Text style={styles.bookTitle}>
+                                                    {selectedBook.title}
+                                                </Text>
+
+                                                {selectedBook.author ? (
+                                                    <Text style={styles.bookAuthor}>
+                                                        {selectedBook.author}
+                                                    </Text>
+                                                ) : null}
+
+                                                {selectedBook.rating ? (
+                                                    <View style={styles.ratingRow}>
+                                                        <StarRatingDisplay value={selectedBook.rating} />
+                                                    </View>
+                                                ) : null}
+                                            </View>
+                                        </View>
+
+                                        {selectedBook.review?.trim() ? (
+                                            <View style={styles.modalSection}>
+                                                <Text style={styles.modalSectionLabel}>
+                                                    {t("friendProfile.review")}
+                                                </Text>
+                                                <Text style={styles.modalSectionText}>
+                                                    {selectedBook.review.trim()}
+                                                </Text>
+                                            </View>
+                                        ) : null}
+
+                                        <View style={styles.modalButtonRow}>
+                                            <Pressable
+                                                style={styles.modalSecondaryButton}
+                                                onPress={() => setSelectedBook(null)}
+                                                disabled={isAddingBook}
+                                            >
+                                                <Text style={styles.modalSecondaryButtonText}>
+                                                    {t("common.close")}
+                                                </Text>
+                                            </Pressable>
+
+                                            <Pressable
+                                                style={[
+                                                    styles.modalPrimaryButton,
+                                                    isAddingBook && styles.modalPrimaryButtonDisabled,
+                                                ]}
+                                                onPress={() => void handleAddFriendBookToTbr(selectedBook)}
+                                                disabled={isAddingBook}
+                                            >
+                                                <Text style={styles.modalPrimaryButtonText}>
+                                                    {isAddingBook
+                                                        ? t("friendProfile.adding")
+                                                        : t("friendProfile.addToMyTbr")}
+                                                </Text>
+                                            </Pressable>
+                                        </View>
+                                    </>
+                                ) : null}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -289,14 +434,120 @@ function CurrentBookCard({ book }: { book: ReadingBook }) {
     );
 }
 
+function CollapsibleBookSection({
+                                    title,
+                                    books,
+                                    isExpanded,
+                                    onToggleExpanded,
+                                    emptyText,
+                                    emptyIcon,
+                                    showRating = false,
+                                    onBookPress,
+                                }: {
+    title: string;
+    books: ReadingBook[];
+    isExpanded: boolean;
+    onToggleExpanded: () => void;
+    emptyText: string;
+    emptyIcon: React.ComponentProps<typeof Feather>["name"];
+    showRating?: boolean;
+    onBookPress: (book: ReadingBook) => void;
+}) {
+    const theme = useAppTheme();
+    const styles = createStyles(theme);
+
+    const previewBooks = books.slice(0, COLLAPSED_PREVIEW_COUNT);
+
+    return (
+        <View style={styles.collapsibleBlock}>
+            <Pressable
+                style={({ pressed }) => [
+                    styles.collapsibleHeaderCard,
+                    pressed && styles.pressedCard,
+                ]}
+                onPress={onToggleExpanded}
+            >
+                <View style={styles.collapsibleHeaderText}>
+                    <View style={styles.collapsibleTitleRow}>
+                        <Text style={styles.sectionTitle}>{title}</Text>
+
+                        <View style={styles.countPill}>
+                            <Text style={styles.countPillText}>{books.length}</Text>
+                        </View>
+                    </View>
+
+                    <Text style={styles.previewHint}>
+                        {isExpanded
+                            ? t("friendProfile.tapToCollapse")
+                            : t("friendProfile.tapToExpand")}
+                    </Text>
+                </View>
+
+                <Feather
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color={theme.colors.accent}
+                />
+            </Pressable>
+
+            {books.length === 0 ? (
+                <View style={styles.emptyStateCard}>
+                    <Feather
+                        name={emptyIcon}
+                        size={18}
+                        color={theme.colors.textMuted}
+                    />
+                    <Text style={styles.emptyStateText}>{emptyText}</Text>
+                </View>
+            ) : isExpanded ? (
+                books.map((book) => (
+                    <BookListCard
+                        key={book.userBookId}
+                        book={book}
+                        showRating={showRating}
+                        onPress={() => onBookPress(book)}
+                    />
+                ))
+            ) : (
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.previewStrip,
+                        pressed && styles.pressedCard,
+                    ]}
+                    onPress={onToggleExpanded}
+                >
+                    {previewBooks.map((book) => (
+                        <BookCover
+                            key={book.userBookId}
+                            title={book.title}
+                            cover={book.coverUrl ?? undefined}
+                            small
+                        />
+                    ))}
+
+                    {books.length > COLLAPSED_PREVIEW_COUNT ? (
+                        <View style={styles.previewMoreCard}>
+                            <Text style={styles.previewMoreText}>
+                                +{books.length - COLLAPSED_PREVIEW_COUNT}
+                            </Text>
+                        </View>
+                    ) : null}
+                </Pressable>
+            )}
+        </View>
+    );
+}
+
 function BookListCard({
                           book,
                           showRating = false,
                           showProgress = false,
+                          onPress,
                       }: {
     book: ReadingBook;
     showRating?: boolean;
     showProgress?: boolean;
+    onPress?: () => void;
 }) {
     const theme = useAppTheme();
     const styles = createStyles(theme);
@@ -304,7 +555,14 @@ function BookListCard({
     const progress = book.progress ?? 0;
 
     return (
-        <View style={styles.listBookCard}>
+        <Pressable
+            style={({ pressed }) => [
+                styles.listBookCard,
+                pressed && onPress && styles.pressedCard,
+            ]}
+            onPress={onPress}
+            disabled={!onPress}
+        >
             <View style={styles.listBookTopRow}>
                 <BookCover
                     title={book.title}
@@ -356,12 +614,134 @@ function BookListCard({
                     </Text>
                 </View>
             ) : null}
-        </View>
+            {onPress ? (
+                <Text style={styles.tapForDetailsText}>
+                    {t("addBook.tapForDetails")}
+                </Text>
+            ) : null}
+        </Pressable>
     );
 }
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        collapsibleBlock: {
+            gap: theme.spacing.sm,
+        },
+
+        collapsibleHeaderCard: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+            gap: theme.spacing.md,
+        },
+
+        pressedCard: {
+            opacity: 0.75,
+        },
+
+        collapsibleHeaderText: {
+            flex: 1,
+            gap: 3,
+        },
+
+        collapsibleTitleRow: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+        },
+
+        countPill: {
+            minWidth: 26,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: theme.colors.accentSoft,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: 8,
+        },
+
+        countPillText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        previewHint: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+        },
+
+        previewStrip: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.sm,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+        },
+
+        previewMoreCard: {
+            width: 46,
+            height: 68,
+            borderRadius: theme.radius.md,
+            backgroundColor: theme.colors.accentSoft,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        previewMoreText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        tapForDetailsText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
+            marginTop: theme.spacing.xs,
+        },
+        collapsibleSectionHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: theme.spacing.sm,
+        },
+
+        collapsedHint: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            backgroundColor: theme.colors.card,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+        },
+
+        showMoreButton: {
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.pill,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            paddingVertical: 12,
+            marginTop: theme.spacing.xs,
+        },
+
+        showMoreText: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
         listBookCard: {
             backgroundColor: theme.colors.card,
             borderRadius: theme.radius.lg,
@@ -561,6 +941,117 @@ function createStyles(theme: AppTheme) {
             color: theme.colors.text,
             fontSize: theme.typography.fontSize.sm,
             lineHeight: 19,
+        },
+
+        modalKeyboardView: {
+            flex: 1,
+        },
+
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.35)",
+        },
+
+        modalScrollContent: {
+            flexGrow: 1,
+            justifyContent: "center",
+            padding: theme.spacing.lg,
+        },
+
+        modalCard: {
+            width: "100%",
+            maxWidth: 420,
+            backgroundColor: theme.colors.background,
+            borderRadius: theme.radius.lg,
+            padding: theme.spacing.lg,
+            gap: theme.spacing.md,
+        },
+
+        modalHeader: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+        },
+
+        modalTitle: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.lg,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        modalCloseButton: {
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+
+        selectedBookPreview: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: theme.spacing.md,
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.lg,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.md,
+        },
+
+        modalSection: {
+            backgroundColor: theme.colors.surface,
+            borderRadius: theme.radius.md,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            padding: theme.spacing.sm,
+            gap: 4,
+        },
+
+        modalSectionLabel: {
+            color: theme.colors.accent,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        modalSectionText: {
+            color: theme.colors.text,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: 20,
+        },
+
+        modalButtonRow: {
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            gap: theme.spacing.sm,
+            marginTop: theme.spacing.sm,
+        },
+
+        modalSecondaryButton: {
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+
+        modalSecondaryButtonText: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
+        },
+
+        modalPrimaryButton: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: theme.radius.pill,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+        },
+
+        modalPrimaryButtonDisabled: {
+            opacity: 0.7,
+        },
+
+        modalPrimaryButtonText: {
+            color: "#FFFFFF",
+            fontSize: theme.typography.fontSize.sm,
+            fontWeight: theme.typography.fontWeight.semibold,
         },
     });
 }

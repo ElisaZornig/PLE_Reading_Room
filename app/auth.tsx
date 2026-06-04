@@ -1,6 +1,16 @@
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+    Pressable,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "@/src/services/supabase";
 import { AppTheme } from "@/src/theme/theme";
@@ -9,6 +19,8 @@ import { showAppAlert } from "@/src/utils/appAlert";
 import { t } from "@/src/i18n";
 import { useAppThemeContext } from "@/src/theme/AppThemeProvider";
 import { getUserAppTheme } from "@/src/theme/applyUserTheme";
+const lightLogo = require("../assets/images/logo-light.png");
+const darkLogo = require("../assets/images/logo-dark.png");
 
 type FormErrors = {
     email?: string;
@@ -24,6 +36,8 @@ export default function AuthScreen() {
     const [errors, setErrors] = useState<FormErrors>({});
     const [isLoading, setIsLoading] = useState(false);
     const { setThemePreference } = useAppThemeContext();
+    const isDarkMode = theme.colors.background.toLowerCase() === "#1e1518";
+    const logoSource = isDarkMode ? darkLogo : lightLogo;
 
     function validateForm() {
         const newErrors: FormErrors = {};
@@ -81,9 +95,28 @@ export default function AuthScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <View style={styles.screen}>
-                <Text style={styles.title}>{t("auth.signInTitle")}</Text>
-                <Text style={styles.subtitle}>{t("auth.signInSubtitle")}</Text>
+            <KeyboardAvoidingView
+                style={styles.keyboardView}
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+            >
+                <ScrollView
+                    style={styles.scrollView}
+                    contentContainerStyle={styles.screen}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                <View style={styles.brandHeader}>
+                    <Image
+                        source={logoSource}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                </View>
+
+                <View style={styles.formIntro}>
+                    <Text style={styles.title}>{t("auth.signInTitle")}</Text>
+                    <Text style={styles.subtitle}>{t("auth.signInSubtitle")}</Text>
+                </View>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>{t("auth.emailLabel")}</Text>
@@ -144,13 +177,53 @@ export default function AuthScreen() {
                 >
                     <Text style={styles.linkText}>{t("auth.noAccount")}</Text>
                 </Pressable>
-            </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
 
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
+        keyboardView: {
+            flex: 1,
+        },
+
+        scrollView: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        brandHeader: {
+            alignItems: "center",
+            marginBottom: theme.spacing.md,
+            gap: 4,
+        },
+
+        logo: {
+            width: 218,
+            height: 218,
+            marginBottom: theme.spacing.xs,
+        },
+
+        brandName: {
+            color: theme.colors.text,
+            fontSize: 30,
+            fontWeight: theme.typography.fontWeight.bold,
+            letterSpacing: -0.5,
+        },
+
+        brandTagline: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            textAlign: "center",
+            maxWidth: 280,
+            lineHeight: 20,
+        },
+
+        formIntro: {
+            gap: 4,
+            marginBottom: theme.spacing.xs,
+        },
         safeArea: {
             flex: 1,
             backgroundColor: theme.colors.background,

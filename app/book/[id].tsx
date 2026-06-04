@@ -35,6 +35,36 @@ import {ScreenTopBar} from "@/src/components/ScreenTopBar";
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
 }
+type OpenLibrarySearchResponse = {
+    docs?: {
+        number_of_pages_median?: number;
+    }[];
+};
+
+async function fetchSuggestedTotalPages(title: string, author?: string | null) {
+    const query = new URLSearchParams({
+        title,
+        fields: "number_of_pages_median",
+        limit: "1",
+    });
+
+    if (author?.trim()) {
+        query.set("author", author.trim());
+    }
+
+    const response = await fetch(
+        `https://openlibrary.org/search.json?${query.toString()}`
+    );
+
+    if (!response.ok) {
+        return null;
+    }
+
+    const data = (await response.json()) as OpenLibrarySearchResponse;
+    const pages = data.docs?.[0]?.number_of_pages_median;
+
+    return typeof pages === "number" && pages > 0 ? pages : null;
+}
 
 export default function BookDetailScreen() {
     const theme = useAppTheme();
@@ -59,6 +89,7 @@ export default function BookDetailScreen() {
     const [ratingInput, setRatingInput] = useState("0");
     const [review, setReview] = useState("");
     const [dnfReason, setDnfReason] = useState("");
+    const [suggestedTotalPages, setSuggestedTotalPages] = useState<number | null>(null);
 
     useEffect(() => {
         async function loadBook() {
@@ -83,6 +114,17 @@ export default function BookDetailScreen() {
                     setProgressInput(Math.round(initialProgress).toString());
                     setCurrentPage(foundBook.currentPage?.toString() ?? "");
                     setTotalPages(foundBook.totalPages?.toString() ?? "");
+
+                    if (!foundBook.totalPages) {
+                        const openLibraryPages = await fetchSuggestedTotalPages(
+                            foundBook.title,
+                            foundBook.author
+                        );
+
+                        setSuggestedTotalPages(openLibraryPages);
+                    } else {
+                        setSuggestedTotalPages(null);
+                    }
                     const initialRating = foundBook.rating ?? 0;
                     setRating(initialRating);
                     setRatingInput(initialRating.toString());
@@ -181,8 +223,9 @@ export default function BookDetailScreen() {
             let nextCurrentPage: number | undefined = undefined;
             let nextTotalPages: number | undefined = undefined;
 
-            const parsedTotalPages = Number(totalPages);
-            const hasValidTotalPages =
+            const parsedTotalPages = Number(
+                totalPages.trim() || suggestedTotalPages || ""
+            );            const hasValidTotalPages =
                 Number.isFinite(parsedTotalPages) && parsedTotalPages > 0;
 
             if (status === "reading") {
@@ -478,7 +521,11 @@ export default function BookDetailScreen() {
                                                 onChangeText={setTotalPages}
                                                 keyboardType="numeric"
                                                 style={styles.input}
-                                                placeholder="320"
+                                                placeholder={
+                                                    suggestedTotalPages
+                                                        ? suggestedTotalPages.toString()
+                                                        : t("bookDetail.totalPagesPlaceholder")
+                                                }
                                                 placeholderTextColor={theme.colors.textMuted}
                                             />
                                         </View>

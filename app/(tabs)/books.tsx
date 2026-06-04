@@ -22,6 +22,7 @@ import {getBookStatusColors, getBookStatusLabel} from "@/src/utils/bookStatus";
 import { showAppAlert, showAppConfirm } from "@/src/utils/appAlert";
 import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
+import {BrandLoader} from "@/src/components/BrandLoader";
 
 export default function BooksScreen() {
     const theme = useAppTheme();
@@ -157,14 +158,7 @@ export default function BooksScreen() {
                 </View>
 
                 {isLoading ? (
-                    <View style={styles.stateWrapper}>
-                        <LottieView
-                            source={require("@/assets/animations/loading-book.json")}
-                            autoPlay
-                            loop
-                            style={styles.loadingAnimation}
-                        />
-                    </View>
+                    <BrandLoader text={t("books.loading")} />
                 ) : filteredBooks.length === 0 ? (
                     <View style={styles.stateWrapper}>
                         <Text style={pageStyles.emptyText}>{t("books.emptyState")}</Text>

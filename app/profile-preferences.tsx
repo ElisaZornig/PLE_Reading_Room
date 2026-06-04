@@ -29,8 +29,6 @@ import {
 
 const THEME_OPTIONS: ThemePreference[] = [
     "system",
-    "light",
-    "dark",
     "green",
     "yellow",
 ];
@@ -75,11 +73,7 @@ export default function ProfilePreferencesScreen() {
 
         if (!error && data) {
             const appTheme =
-                data.app_theme === "light" ||
-                data.app_theme === "dark" ||
-                data.app_theme === "system" ||
-                data.app_theme === "green" ||
-                data.app_theme === "yellow"
+                data.app_theme === "green" || data.app_theme === "yellow"
                     ? data.app_theme
                     : "system";
 
@@ -244,6 +238,9 @@ export default function ProfilePreferencesScreen() {
                     <Text style={styles.sectionTitle}>
                         {t("profilePreferences.appearance")}
                     </Text>
+                    <Text style={styles.sectionHint}>
+                        {t("profilePreferences.appearanceHint")}
+                    </Text>
 
                     <View style={styles.optionList}>
                         {THEME_OPTIONS.map((themeOption) => {
@@ -301,6 +298,13 @@ function createStyles(theme: AppTheme) {
         safeArea: {
             flex: 1,
             backgroundColor: theme.colors.background,
+        },
+        sectionHint: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.sm,
+            lineHeight: theme.typography.lineHeight.sm ?? 20,
+            marginTop: -theme.spacing.xs,
+            marginBottom: theme.spacing.md,
         },
         screen: {
             flex: 1,
