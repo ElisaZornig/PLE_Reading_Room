@@ -147,6 +147,8 @@ const nl = {
         manageMeeting: "Beheren",
         manageMeetingHint: "Pas de meeting aan of prik samen een nieuwe datum.",
         planMeetingHint: "Plan direct een meeting of start een datumprikker.",
+        yourProgress: "Jouw voortgang",
+        tapToUpdateYourProgress: "Tik om je voortgang bij te werken",
     },
     chooseBook: {
         title: "Kies een nieuw boek",

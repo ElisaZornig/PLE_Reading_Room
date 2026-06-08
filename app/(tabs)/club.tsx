@@ -25,6 +25,7 @@ import {ProfileButton} from "@/src/components/ProfileButton";
 import {AvatarBubble} from "@/src/components/AvatarBubble";
 import {COMMENT_VISIBILITY_OPTIONS} from "@/src/constants/visibilityOptions";
 import {BrandLoader} from "@/src/components/BrandLoader";
+import {supabase} from "@/src/services/supabase";
 
 export default function ClubScreen() {
     const theme = useAppTheme();
@@ -40,6 +41,7 @@ export default function ClubScreen() {
     const [activeQuestionCount, setActiveQuestionCount] = useState(0);
     const params = useLocalSearchParams<{ refresh?: string }>();
     const [isSavingCommentVisibility, setIsSavingCommentVisibility] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
     async function handleUpdateCommentVisibility(mode: CommentVisibilityMode) {
         if (!club || club.currentUserRole !== "owner" || isSavingCommentVisibility) {
@@ -146,6 +148,11 @@ export default function ClubScreen() {
             if (showLoader) {
                 setIsLoading(true);
             }
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+
+            setCurrentUserId(user?.id ?? null);
 
             const clubData = await fetchClubOverviewFromSupabase();
             setClub(clubData);
@@ -299,6 +306,13 @@ export default function ClubScreen() {
 
     const daysUntilMeeting = getDaysUntil(club.nextMeeting?.meetingDate);
     const owner = memberProgress.find((member) => member.role === "owner");
+
+    const currentUserProgress = currentUserId
+        ? memberProgress.find((member) => member.userId === currentUserId)
+        : null;
+
+    const ownProgress = currentUserProgress?.progress ?? 0;
+
     const selectedCommentVisibilityOption =
         COMMENT_VISIBILITY_OPTIONS.find(
             (option) => option.value === club.commentVisibilityMode
@@ -383,9 +397,19 @@ export default function ClubScreen() {
                                 </View>
                             </View>
 
-                            <View style={styles.clubProgressWrap}>
+                            <View style={styles.ownProgressBlock}>
+                                <View style={styles.ownProgressHeader}>
+                                    <Text style={styles.ownProgressLabel}>
+                                        {t("club.yourProgress")}
+                                    </Text>
+
+                                    <Text style={styles.progressPercentage}>
+                                        {ownProgress}%
+                                    </Text>
+                                </View>
+
                                 <Progress.Bar
-                                    progress={club.averageProgress / 100}
+                                    progress={ownProgress / 100}
                                     width={null}
                                     height={5}
                                     borderWidth={0}
@@ -393,12 +417,9 @@ export default function ClubScreen() {
                                     unfilledColor={theme.colors.border}
                                     style={styles.clubProgressBar}
                                 />
-                                <Text style={styles.progressPercentage}>
-                                    {club.averageProgress}%
-                                </Text>
                             </View>
 
-                            <Text style={styles.tapHint}>{t("club.tapToViewProgress")}</Text>
+                            <Text style={styles.tapHint}>{t("club.tapToUpdateYourProgress")}</Text>
                         </>
                     ) : (
                         <View style={styles.emptyCurrentBook}>
@@ -803,6 +824,22 @@ function createStyles(theme: AppTheme) {
         meetingClickableCard: {
             position: "relative",
             paddingRight: theme.spacing.xl + 18,
+        },
+        ownProgressBlock: {
+            gap: theme.spacing.xs,
+        },
+
+        ownProgressHeader: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: theme.spacing.sm,
+        },
+
+        ownProgressLabel: {
+            color: theme.colors.textMuted,
+            fontSize: theme.typography.fontSize.xs,
+            fontWeight: theme.typography.fontWeight.medium,
         },
 
         meetingCardContent: {

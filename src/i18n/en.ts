@@ -147,6 +147,8 @@ const en = {
         manageMeeting: "Manage",
         manageMeetingHint: "Edit the meeting or pick a new date together.",
         planMeetingHint: "Plan a meeting directly or start a date picker.",
+        yourProgress: "Your progress",
+        tapToUpdateYourProgress: "Tap to update your progress",
     },
     chooseBook: {
         title: "Choose a new book",
