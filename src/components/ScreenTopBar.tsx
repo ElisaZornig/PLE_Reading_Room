@@ -1,21 +1,32 @@
 import { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { BackButton } from "@/src/components/BackButton";
+import { BackButton, BackButtonProps } from "@/src/components/BackButton";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 
 type ScreenTopBarProps = {
     title?: string;
     right?: ReactNode;
+    back?: BackButtonProps;
+    showBackButton?: boolean;
 };
 
-export function ScreenTopBar({ title, right }: ScreenTopBarProps) {
+export function ScreenTopBar({
+                                 title,
+                                 right,
+                                 back,
+                                 showBackButton = true,
+                             }: ScreenTopBarProps) {
     const theme = useAppTheme();
     const styles = createStyles(theme);
 
     return (
         <View style={styles.container}>
-            <BackButton />
+            {showBackButton ? (
+                <BackButton {...back} />
+            ) : (
+                <View style={styles.leftSlot} />
+            )}
 
             {title ? (
                 <Text style={styles.title} numberOfLines={1}>
@@ -39,6 +50,10 @@ function createStyles(theme: AppTheme) {
             paddingHorizontal: theme.spacing.lg,
             paddingTop: theme.spacing.sm,
             paddingBottom: theme.spacing.md,
+        },
+        leftSlot: {
+            width: 44,
+            height: 44,
         },
         title: {
             flex: 1,

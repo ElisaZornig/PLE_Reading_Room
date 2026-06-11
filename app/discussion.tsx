@@ -1197,14 +1197,21 @@ export default function DiscussionScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
-            <ScreenTopBar title={t("discussion.title")}
-                          right = {<Pressable
-                style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
-                onPress={() => void loadDiscussion(false)}
-                disabled={isRefreshing}
-            >
-                <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
-            </Pressable>}
+            <ScreenTopBar
+                title={t("discussion.title")}
+                back={{
+                    href: "/club",
+                    replace: true,
+                }}
+                right={
+                    <Pressable
+                        style={[styles.refreshButton, isRefreshing && styles.refreshButtonDisabled]}
+                        onPress={() => void loadDiscussion(false)}
+                        disabled={isRefreshing}
+                    >
+                        <Feather name="refresh-cw" size={18} color={theme.colors.accent} />
+                    </Pressable>
+                }
             />
             <KeyboardAvoidingView
                 style={styles.safeArea}

@@ -42,6 +42,7 @@ describe("searchBooks", () => {
                 author: "Jane Austen",
                 cover: "https://covers.openlibrary.org/b/id/12345-M.jpg",
                 firstPublishYear: 1813,
+                genres: [],
             },
         ]);
     });

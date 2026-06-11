@@ -1,15 +1,41 @@
 import { Feather } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
 import { Pressable, StyleSheet } from "react-native";
 import { AppTheme } from "@/src/theme/theme";
 import { useAppTheme } from "@/src/theme/useAppTheme";
 
-export function BackButton() {
+export type BackButtonProps = {
+    href?: Href;
+    replace?: boolean;
+    fallbackHref?: Href;
+};
+
+export function BackButton({ href, replace = false, fallbackHref }: BackButtonProps) {
     const theme = useAppTheme();
     const styles = createStyles(theme);
 
+    const handlePress = () => {
+        if (href) {
+            if (replace) {
+                router.replace(href);
+            } else {
+                router.push(href);
+            }
+            return;
+        }
+
+        if (router.canGoBack()) {
+            router.back();
+            return;
+        }
+
+        if (fallbackHref) {
+            router.replace(fallbackHref);
+        }
+    };
+
     return (
-        <Pressable style={styles.button} onPress={() => router.back()}>
+        <Pressable style={styles.button} onPress={handlePress}>
             <Feather name="arrow-left" size={20} color={theme.colors.text} />
         </Pressable>
     );
