@@ -24,6 +24,16 @@ import {subscribeToRefresh} from "@/src/utils/refreshEvents";
 import {ProfileButton} from "@/src/components/ProfileButton";
 import {BrandLoader} from "@/src/components/BrandLoader";
 
+/**
+ * Shows the user's personal book collection.
+ *
+ * This screen handles:
+ * - loading books from Supabase;
+ * - falling back to local storage when Supabase is unavailable;
+ * - filtering books by reading status;
+ * - navigating to book detail pages;
+ * - deleting books from the user's library.
+ */
 export default function BooksScreen() {
     const theme = useAppTheme();
     const pageStyles = createPageStyles(theme);
@@ -43,6 +53,12 @@ export default function BooksScreen() {
         { key: "dnf", label: t("books.dnf") },
     ] as const;
 
+    /**
+     * Loads the user's saved books.
+     *
+     * Supabase is used as the main data source. If the Supabase request fails,
+     * the app falls back to AsyncStorage so users can still see locally stored books.
+     */
     async function loadBooks() {
         try {
             const supabaseBooks = await fetchUserBooksFromSupabase();
@@ -56,6 +72,12 @@ export default function BooksScreen() {
         }
     }
 
+    /**
+     * Removes a book from both Supabase and local storage.
+     *
+     * Deleting from both places prevents old local data from reappearing
+     * after the book has already been removed from the user's account.
+     */
     async function deleteBookNow(bookId: string) {
         try {
             await removeUserBookFromSupabase(bookId);
@@ -67,6 +89,11 @@ export default function BooksScreen() {
         }
     }
 
+    /**
+     * Shows a confirmation dialog before deleting a book.
+     *
+     * The book is only removed after the user confirms the action.
+     */
     async function handleDeleteBook(bookId: string, bookTitle: string) {
         const confirmed = await showAppConfirm({
             title: t("deleteBook.title"),
@@ -80,6 +107,12 @@ export default function BooksScreen() {
         await deleteBookNow(bookId);
     }
 
+    /**
+     * Loads the books when the screen opens.
+     *
+     * The refresh subscription makes sure this screen updates when books
+     * are changed somewhere else in the app.
+     */
     useEffect(() => {
         void loadBooks();
 
@@ -90,7 +123,20 @@ export default function BooksScreen() {
         return unsubscribe;
     }, [loadBooks]);
 
+    /**
+     * Filters books based on the selected status chip.
+     *
+     * The list is also sorted in a fixed order so the book overview stays predictable.
+     * useMemo prevents this filtering and sorting from running again unless
+     * the books or active filter change.
+     */
     const filteredBooks = useMemo(() => {
+        /**
+         * Display order for book statuses.
+         *
+         * Currently reading books are shown first because they are usually
+         * the most relevant for the user.
+         */
         const statusOrder = {
             reading: 0,
             finished: 1,
@@ -171,6 +217,12 @@ export default function BooksScreen() {
                         style={styles.list}
                         contentContainerStyle={styles.bookListContent}
                         renderItem={({ item: book }) => {
+                            /*
+                             * Renders one book card in the list.
+                             *
+                             * Each card shows the cover, title, author, status,
+                             * optional reading progress, rating and review preview.
+                             */
                             const statusColors = getBookStatusColors(book.status, theme);
 
                             return (
@@ -235,6 +287,11 @@ export default function BooksScreen() {
                                             ) : null}
                                         </View>
 
+                                        {/*
+                                            Delete button inside the book card.
+                                            stopPropagation prevents the card press from also opening
+                                            the book detail page when the user taps delete.
+                                        */}
                                         <Pressable
                                             style={styles.deleteButton}
                                             onPress={(event) => {
@@ -273,6 +330,12 @@ export default function BooksScreen() {
     );
 }
 
+/**
+ * Creates screen-specific styles based on the active app theme.
+ *
+ * Keeping styles in a function makes the screen support both light and dark mode
+ * without duplicating styling logic.
+ */
 function createStyles(theme: AppTheme) {
     return StyleSheet.create({
         bookCard: {
